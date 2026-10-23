@@ -1,9 +1,11 @@
+import { BASS, FLAT, SHARP, STAFF_SPACE_UNITS, TREBLE, type MusicGlyph } from "./music-glyphs";
 import { signaturePositions } from "./notation";
 
 /** One staff position is a line or the space beside it. Two positions make one space. */
 export const STEP = 8;
-const PAD = 12;
+const PAD = 14;
 const STEM = 6.5;
+const POSITION_UNITS = STAFF_SPACE_UNITS / 2;
 
 interface GlyphBox {
   minX: number;
@@ -12,14 +14,22 @@ interface GlyphBox {
   maxY: number;
 }
 
-/** Glyph boxes are in staff-position units, y upward, origin on the glyph's center note. */
-const SHARP: GlyphBox = { minX: -0.95, maxX: 0.95, minY: -1.35, maxY: 1.35 };
-const FLAT: GlyphBox = { minX: -0.4, maxX: 1.15, minY: -1.35, maxY: 2.25 };
+/** Box around the ink, in staff positions. x is from the font origin. y is from the note. */
+function box(glyph: MusicGlyph): GlyphBox {
+  return {
+    minX: glyph.xMin / POSITION_UNITS,
+    maxX: glyph.xMax / POSITION_UNITS,
+    minY: (glyph.yMin - glyph.anchorFontY) / POSITION_UNITS,
+    maxY: (glyph.yMax - glyph.anchorFontY) / POSITION_UNITS,
+  };
+}
 
-const CLEF: Record<"treble" | "bass", GlyphBox & { origin: number }> = {
-  treble: { origin: 2, minX: -2.35, maxX: 3.05, minY: -6.5, maxY: 10.5 },
-  bass: { origin: 6, minX: -2.45, maxX: 3.05, minY: -8.1, maxY: 3.5 },
-};
+const SHARP_BOX = box(SHARP);
+const FLAT_BOX = box(FLAT);
+const CLEF = {
+  treble: { glyph: TREBLE, ...box(TREBLE) },
+  bass: { glyph: BASS, ...box(BASS) },
+} as const;
 
 export interface LaidOutStaff {
   clef: "treble" | "bass";
@@ -29,7 +39,7 @@ export interface LaidOutStaff {
   y: (position: number) => number;
   positionAt: (pixelY: number) => number;
   signature: { x: number; position: number }[];
-  notes: { x: number; position: number; accidental: number }[];
+  notes: { x: number; accidentalX: number | null; position: number; accidental: number }[];
   minPos: number;
   maxPos: number;
 }
@@ -40,25 +50,29 @@ export function layoutStaff(
   notes: { position: number; accidental: number }[]
 ): LaidOutStaff {
   const clefBox = CLEF[clef];
-  const accidental = fifths >= 0 ? SHARP : FLAT;
+  const accidental = fifths >= 0 ? SHARP_BOX : FLAT_BOX;
   const anchorX = PAD - clefBox.minX * STEP;
   const clefRight = anchorX + clefBox.maxX * STEP;
   const positions = signaturePositions(fifths, clef);
-  const slot = (accidental.maxX - accidental.minX + 0.55) * STEP;
-  const sigStart = clefRight + STEP;
+  const slot = (accidental.maxX - accidental.minX) * STEP + 7;
+  const sigStart = clefRight + 16;
   const signature = positions.map((position, index) => ({
     position,
     x: sigStart + index * slot - accidental.minX * STEP,
   }));
   const sigRight = positions.length === 0 ? clefRight : sigStart + positions.length * slot;
 
-  let cursor = sigRight + STEP * 2.4;
+  let cursor = sigRight + 22;
   const laidNotes = notes.map((note) => {
-    const mark = note.accidental === 0 ? null : note.accidental > 0 ? SHARP : FLAT;
-    if (mark) cursor += (mark.maxX - mark.minX + 0.2) * STEP;
-    const x = cursor;
-    cursor += STEP * 4.4;
-    return { x, position: note.position, accidental: note.accidental };
+    const mark = note.accidental === 0 ? null : note.accidental > 0 ? SHARP_BOX : FLAT_BOX;
+    let accidentalX: number | null = null;
+    if (mark) {
+      accidentalX = cursor - mark.minX * STEP;
+      cursor = accidentalX + mark.maxX * STEP + 6;
+    }
+    const x = cursor + 8;
+    cursor = x + 30;
+    return { x, accidentalX, position: note.position, accidental: note.accidental };
   });
 
   const contentRight = laidNotes.length
@@ -66,8 +80,8 @@ export function layoutStaff(
     : sigRight + STEP * 16;
   const width = Math.max(640, contentRight + PAD);
 
-  let minPos = clefBox.origin + clefBox.minY;
-  let maxPos = clefBox.origin + clefBox.maxY;
+  let minPos = clefBox.glyph.staffPosition + clefBox.minY;
+  let maxPos = clefBox.glyph.staffPosition + clefBox.maxY;
   for (const mark of signature) {
     minPos = Math.min(minPos, mark.position + accidental.minY);
     maxPos = Math.max(maxPos, mark.position + accidental.maxY);
@@ -76,7 +90,7 @@ export function layoutStaff(
     const stemEnd = note.position < 4 ? note.position + STEM : note.position - STEM;
     minPos = Math.min(minPos, note.position - 0.85, stemEnd);
     maxPos = Math.max(maxPos, note.position + 0.85, stemEnd);
-    const mark = note.accidental === 0 ? null : note.accidental > 0 ? SHARP : FLAT;
+    const mark = note.accidental === 0 ? null : note.accidental > 0 ? SHARP_BOX : FLAT_BOX;
     if (mark) {
       minPos = Math.min(minPos, note.position + mark.minY);
       maxPos = Math.max(maxPos, note.position + mark.maxY);
