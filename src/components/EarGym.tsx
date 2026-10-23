@@ -28,7 +28,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-interface TeoriaEarGymProps {
+interface EarGymProps {
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
 }
 
@@ -46,7 +46,7 @@ interface DrillQuestion {
   options: { id: string; label: string; sublabel: string; color: string }[];
 }
 
-export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
+export function EarGym({ onPlayNotes }: EarGymProps) {
   const [category, setCategory] = React.useState<DrillCategory>("intervals");
   const [score, setScore] = React.useState(0);
   const [totalAnswered, setTotalAnswered] = React.useState(0);
@@ -171,19 +171,20 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <Badge className="mb-1.5 bg-main text-main-foreground">
-                TEORIA.COM INSPIRED // INTERACTIVE EAR & THEORY GYM
-              </Badge>
-              <CardTitle className="text-xl sm:text-2xl">
-                Aural & Geometric Recognition Trainer
-              </CardTitle>
+              <CardTitle className="text-xl">Listen, then name it</CardTitle>
               <CardDescription className="mt-1">
-                Train your ear like Teoria.com—listen to the synthesized prompt, then reveal its exact visual pitch constellation!
+                Hear the prompt. Answer. The explanation names the steps after you choose.
               </CardDescription>
             </div>
 
             <div className="flex items-center gap-1.5">
-              {(["intervals", "chords", "modes"] as const).map((cat) => (
+              {(
+                [
+                  ["intervals", "Intervals"],
+                  ["chords", "Chords"],
+                  ["modes", "Modes"],
+                ] as const
+              ).map(([cat, label]) => (
                 <Button
                   key={cat}
                   size="xs"
@@ -193,7 +194,7 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
                     handleNextQuestion(cat);
                   }}
                 >
-                  {cat.toUpperCase()}
+                  {label}
                 </Button>
               ))}
             </div>
@@ -211,8 +212,8 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
                 {CHROMATIC_NOTES[question.rootPc]}
               </div>
               <div>
-                <div className="text-xs font-mono uppercase text-foreground/75">
-                  CURRENT AURAL CHALLENGE
+                <div className="text-xs font-heading uppercase tracking-wide text-foreground/60">
+                  Starting note
                 </div>
                 <div className="text-lg font-heading">{question.promptTitle}</div>
               </div>
@@ -287,8 +288,8 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
                     }
                   >
                     {selectedAnswer === question.correctId
-                      ? "SPOT ON!"
-                      : "NOT QUITE — LISTEN AGAIN"}
+                      ? "Yes"
+                      : "Listen again"}
                   </Badge>
                   <span className="font-heading text-base">
                     Answer: {question.correctLabel}
@@ -308,13 +309,13 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
         </CardContent>
       </Card>
 
-      {/* Right: Scoreboard & Teoria Practice Guide */}
+      {/* Right: score and a short listening guide */}
       <div className="lg:col-span-5 flex flex-col gap-6">
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Trophy className="size-5" />
-              Session Telemetry & Streak
+              This sitting
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
@@ -339,7 +340,7 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
 
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-heading">
-                <span>Ear Mastery Meter</span>
+                <span>Answers so far</span>
                 <span>{accuracy}%</span>
               </div>
               <Progress value={accuracy} />
@@ -350,7 +351,7 @@ export function TeoriaEarGym({ onPlayNotes }: TeoriaEarGymProps) {
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="text-lg">
-              How to Recognize Any Sound Instantly
+              What to listen for
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-2.5 text-xs sm:text-sm">

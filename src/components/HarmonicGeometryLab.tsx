@@ -31,6 +31,8 @@ interface HarmonicGeometryLabProps {
   selectedScale: ScaleDefinition;
   onSelectScale: (scale: ScaleDefinition) => void;
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
+  embedded?: boolean;
+  focus?: "chord" | "both";
 }
 
 export function HarmonicGeometryLab({
@@ -41,9 +43,13 @@ export function HarmonicGeometryLab({
   selectedScale,
   onSelectScale,
   onPlayNotes,
+  embedded = false,
+  focus = "both",
 }: HarmonicGeometryLabProps) {
   const [isFifthsSpace, setIsFifthsSpace] = React.useState(false);
-  const [overlayMode, setOverlayMode] = React.useState<"chord" | "scale" | "both">("both");
+  const [overlayMode, setOverlayMode] = React.useState<"chord" | "scale" | "both">(
+    focus === "chord" ? "chord" : "both"
+  );
 
   // Order of pitch classes around the 12-node clock
   const ringOrder = isFifthsSpace
@@ -97,19 +103,18 @@ export function HarmonicGeometryLab({
       <Card className="lg:col-span-7 bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Badge className="mb-1.5 bg-main text-main-foreground">
-                VISUAL INSIGHT #1 // HARMONY = GEOMETRY
-              </Badge>
-              <CardTitle className="text-xl sm:text-2xl">
-                The 12-Tone Polygon & Circle of Fifths Clock
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Every chord and scale is a geometric polygon inscribed in a 12-point circle. Rotate the polygon to transpose to any key!
-              </CardDescription>
-            </div>
+            {!embedded && (
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">
+                  Chords drawn on a 12-note clock
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Every chord is a shape on a circle. Turn the shape to move it to another home note.
+                </CardDescription>
+              </div>
+            )}
 
-            <div className="flex items-center gap-2 rounded-base border-2 border-border bg-background px-3 py-2 shadow-[2px_2px_0px_0px_#000]">
+            <div className="flex items-center gap-2 rounded-base border-2 border-border bg-background px-3 py-2">
               <Compass className="size-4" />
               <span className="text-xs font-heading">
                 {isFifthsSpace ? "Circle of 5ths (+7)" : "Chromatic (+1)"}
@@ -125,22 +130,24 @@ export function HarmonicGeometryLab({
         <CardContent className="pt-4 flex flex-col items-center">
           {/* Overlay Mode Selector + Play Controls */}
           <div className="flex flex-wrap items-center justify-between gap-2 w-full mb-3">
-            <div className="flex items-center gap-1.5">
-              {(["both", "chord", "scale"] as const).map((m) => (
-                <Button
-                  key={m}
-                  size="xs"
-                  variant={overlayMode === m ? "default" : "neutral"}
-                  onClick={() => setOverlayMode(m)}
-                >
-                  {m === "both"
-                    ? "Chord + Scale"
-                    : m === "chord"
-                      ? "Chord Polygon"
-                      : "Scale Star"}
-                </Button>
-              ))}
-            </div>
+            {focus === "both" && (
+              <div className="flex items-center gap-1.5">
+                {(["both", "chord", "scale"] as const).map((m) => (
+                  <Button
+                    key={m}
+                    size="xs"
+                    variant={overlayMode === m ? "default" : "neutral"}
+                    onClick={() => setOverlayMode(m)}
+                  >
+                    {m === "both"
+                      ? "Chord + Scale"
+                      : m === "chord"
+                        ? "Chord"
+                        : "Scale"}
+                  </Button>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Button
@@ -155,14 +162,14 @@ export function HarmonicGeometryLab({
                 }}
               >
                 <RotateCcw className="size-3.5 rotate-180" />
-                Rotate Clockwise
+                Next home
               </Button>
               <Button
                 size="xs"
                 onClick={() => triggerChordAudio(rootPc, selectedChord, false)}
               >
                 <Play className="size-3.5" />
-                Strum {CHROMATIC_NOTES[rootPc]}
+                Play {CHROMATIC_NOTES[rootPc]}
                 {selectedChord.symbol}
               </Button>
             </div>
@@ -368,7 +375,7 @@ export function HarmonicGeometryLab({
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Triangle className="size-5" />
-              1. Pick a Chord Polygon Shape
+              Choose a chord
             </CardTitle>
             <CardDescription>
               Watch how symmetric shapes (Augmented = equilateral triangle, Diminished 7th = square) sound floating and restless, while asymmetric shapes feel grounded.
@@ -450,11 +457,12 @@ export function HarmonicGeometryLab({
           </CardContent>
         </Card>
 
+        {focus === "both" && (
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Orbit className="size-5" />
-              2. Overlay Scale / Mode Constellation
+              Lay a scale on the same clock
             </CardTitle>
             <CardDescription>
               Toggle to Circle of Fifths (+7) on the clock above to see why Major and Pentatonic scales group together cleanly.
@@ -493,6 +501,7 @@ export function HarmonicGeometryLab({
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

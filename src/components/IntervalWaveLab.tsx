@@ -22,15 +22,23 @@ import { Waves, Play, Sparkles, Activity } from "lucide-react";
 interface IntervalWaveLabProps {
   rootPc: number;
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
+  onIntervalChange?: (interval: IntervalInfo) => void;
+  embedded?: boolean;
 }
 
 export function IntervalWaveLab({
   rootPc,
   onPlayNotes,
+  onIntervalChange,
+  embedded = false,
 }: IntervalWaveLabProps) {
   const [selectedInterval, setSelectedInterval] = React.useState<IntervalInfo>(
     INTERVALS[7] // Perfect Fifth (3:2) default
   );
+
+  React.useEffect(() => {
+    onIntervalChange?.(selectedInterval);
+  }, [selectedInterval, onIntervalChange]);
   const [phase, setPhase] = React.useState(0);
   const [isAnimating, setIsAnimating] = React.useState(true);
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -139,17 +147,16 @@ export function IntervalWaveLab({
       <Card className="lg:col-span-7 bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Badge className="mb-1.5 bg-main text-main-foreground">
-                VISUAL INSIGHT #2 // CONSONANCE = SIMPLE RATIOS
-              </Badge>
-              <CardTitle className="text-xl sm:text-2xl">
-                Wave Interference & Lissajous Harmonics
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Why does a Perfect Fifth sound rock-solid while a Minor Second clashes? Look at how quickly their soundwaves lock back into phase!
-              </CardDescription>
-            </div>
+            {!embedded && (
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">
+                  How two notes lock, or beat
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Simple ratios line up. Complicated ones shimmer and clash.
+                </CardDescription>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button
                 size="xs"
@@ -297,11 +304,11 @@ export function IntervalWaveLab({
         <CardHeader className="border-b-2 border-border">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Waves className="size-5" />
-            Interactive Interval Spectrum (0 – 12 Semitones)
+            Choose a distance
           </CardTitle>
           <CardDescription>
-            Click any interval to hear it from{" "}
-            <strong>{CHROMATIC_NOTES[rootPc]}</strong> and inspect its wave ratio.
+            Each row is a number of half steps up from{" "}
+            <strong>{CHROMATIC_NOTES[rootPc]}</strong>.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">

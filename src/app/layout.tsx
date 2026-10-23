@@ -15,9 +15,9 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TEORIA // VISUAL LAB — Neobrutalist Music Theory Playground",
+  title: "First Octave — music theory, one idea at a time",
   description:
-    "Learn music theory with geometric intuition, real-time Web Audio synthesis, wave physics, and interactive ear-training drills inspired by Teoria.com.",
+    "A played course in music theory. Learn notes, steps, intervals, scales, chords, and rhythm on one piano.",
 };
 
 export default function RootLayout({

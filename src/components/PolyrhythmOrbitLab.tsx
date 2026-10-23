@@ -53,7 +53,7 @@ const POLYRHYTHM_PRESETS: PolyrhythmPreset[] = [
   },
 ];
 
-export function PolyrhythmOrbitLab() {
+export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean }) {
   const [ringA, setRingA] = React.useState(3);
   const [ringB, setRingB] = React.useState(2);
   const [bpm, setBpm] = React.useState(96);
@@ -137,17 +137,16 @@ export function PolyrhythmOrbitLab() {
       <Card className="lg:col-span-7 bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Badge className="mb-1.5 bg-main text-main-foreground">
-                VISUAL INSIGHT #5 // RHYTHM = GEOMETRY IN TIME
-              </Badge>
-              <CardTitle className="text-xl sm:text-2xl">
-                Euclidean & Polyrhythm Orbit Sequencer ({ringA} : {ringB})
-              </CardTitle>
-              <CardDescription className="mt-1">
-                A polyrhythm is simply two regular polygons spinning at the same cycle speed! Watch the radar arm strike the outer ({ringA}) and inner ({ringB}) vertices.
-              </CardDescription>
-            </div>
+            {!embedded && (
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">
+                  {ringA} against {ringB}
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Two steady pulses share the top of the wheel and part company in between.
+                </CardDescription>
+              </div>
+            )}
 
             <Button
               size="sm"

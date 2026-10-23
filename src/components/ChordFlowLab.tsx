@@ -25,9 +25,14 @@ import { Play, Square, GitBranch, Sparkles, ArrowRight } from "lucide-react";
 interface ChordFlowLabProps {
   rootPc: number;
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
+  embedded?: boolean;
 }
 
-export function ChordFlowLab({ rootPc, onPlayNotes }: ChordFlowLabProps) {
+export function ChordFlowLab({
+  rootPc,
+  onPlayNotes,
+  embedded = false,
+}: ChordFlowLabProps) {
   const [progressionDegrees, setProgressionDegrees] = React.useState<number[]>([
     2, 5, 1, 6,
   ]);
@@ -125,21 +130,20 @@ export function ChordFlowLab({ rootPc, onPlayNotes }: ChordFlowLabProps) {
       <Card className="lg:col-span-7 bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Badge className="mb-1.5 bg-main text-main-foreground">
-                VISUAL INSIGHT #4 // HARMONIC GRAVITY & VOICE LEADING
-              </Badge>
-              <CardTitle className="text-xl sm:text-2xl">
-                Voice-Leading River & Functional Gravity Sequencer
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Great progressions don&apos;t jump wildly—individual voices glide by 0, 1, or 2 semitones while the bass anchors the harmony!
-              </CardDescription>
-            </div>
+            {!embedded && (
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">
+                  Voices that step, instead of jump
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Each line should stay put, or move by one or two half steps.
+                </CardDescription>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 rounded-base border-2 border-border bg-background px-2.5 py-1.5">
-                <span className="text-xs font-heading">Jazz 7ths</span>
+                <span className="text-xs font-heading">Sevenths</span>
                 <Switch
                   checked={useSevenths}
                   onCheckedChange={(v) => setUseSevenths(Boolean(v))}
