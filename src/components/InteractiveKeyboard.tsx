@@ -187,10 +187,7 @@ export function InteractiveKeyboard({
               <button
                 key={key.midi}
                 aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  playKey(key.midi);
-                }}
+                onClick={() => playKey(key.midi)}
                 className={`relative flex h-full flex-1 flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
                   isActive ? "translate-y-0.5" : ""
                 }`}
@@ -225,8 +222,7 @@ export function InteractiveKeyboard({
               <button
                 key={key.midi}
                 aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
-                onPointerDown={(event) => {
-                  event.preventDefault();
+                onClick={(event) => {
                   event.stopPropagation();
                   playKey(key.midi);
                 }}

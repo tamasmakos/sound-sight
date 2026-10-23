@@ -96,8 +96,7 @@ function StringRow({
           <button
             key={fret}
             aria-label={`${string.name} string fret ${fret}, ${CHROMATIC_NOTES[pc]}`}
-            onPointerDown={(event) => {
-              event.preventDefault();
+            onClick={() => {
               soundEngine.unlock();
               onTriggerMidi(midi);
             }}
