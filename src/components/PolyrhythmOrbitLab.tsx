@@ -132,9 +132,9 @@ export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean })
   const lcm = (ringA * ringB) / gcd(ringA, ringB);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 gap-3">
       {/* Left: Concentric Polyrhythm Radar */}
-      <Card className="lg:col-span-7 bg-secondary-background">
+      <Card className="bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!embedded && (
@@ -358,7 +358,7 @@ export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean })
       </Card>
 
       {/* Right: Controls & Presets */}
-      <div className="lg:col-span-5 flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">

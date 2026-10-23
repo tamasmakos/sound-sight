@@ -3,7 +3,6 @@
 import React from "react";
 import {
   CHORD_QUALITIES,
-  CHROMATIC_NOTES,
   SCALES,
   ChordQuality,
   IntervalInfo,
@@ -17,8 +16,8 @@ import {
   Lesson,
 } from "@/lib/curriculum";
 import type { LabelMode } from "@/lib/curriculum";
-import { soundEngine } from "@/lib/audio-engine";
-import { InteractiveKeyboard } from "@/components/InteractiveKeyboard";
+import { soundEngine, type AudioPhase } from "@/lib/audio-engine";
+import { InstrumentStage, type InstrumentId } from "@/components/InstrumentStage";
 import { PitchWalk } from "@/components/PitchWalk";
 import { HarmonicGeometryLab } from "@/components/HarmonicGeometryLab";
 import { IntervalWaveLab } from "@/components/IntervalWaveLab";
@@ -26,21 +25,25 @@ import { ScaleModeLab } from "@/components/ScaleModeLab";
 import { ChordFlowLab } from "@/components/ChordFlowLab";
 import { PolyrhythmOrbitLab } from "@/components/PolyrhythmOrbitLab";
 import { EarGym } from "@/components/EarGym";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ExercisePanel } from "@/components/ExercisePanel";
+import { StaffNotation } from "@/components/StaffNotation";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  GrandStaffLesson,
+  InversionLesson,
+  KeySignatureLesson,
+  MeterLesson,
+  MinorLesson,
+  RhythmLesson,
+  StaffLesson,
+} from "@/components/ReadingDesk";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Check, Music, Volume2, VolumeX } from "lucide-react";
 
 const IONIAN = SCALES.find((scale) => scale.id === "ionian")!;
 const CHAPTERS = lessonsByChapter();
 const INITIAL_SHAPE_STEPS = [2, 5, 9];
+const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11, 12];
 
 export function CourseApp() {
   const [lessonId, setLessonId] = React.useState(LESSONS[0].id);
@@ -56,10 +59,16 @@ export function CourseApp() {
   const [shapeSteps, setShapeSteps] = React.useState<number[]>(INITIAL_SHAPE_STEPS);
   const [intervalSemitones, setIntervalSemitones] = React.useState(7);
   const [labelMode, setLabelMode] = React.useState<LabelMode>("notes");
+  const [instrument, setInstrument] = React.useState<InstrumentId>("piano");
   const [isMuted, setIsMuted] = React.useState(false);
+  const [audioPhase, setAudioPhase] = React.useState<AudioPhase>("unready");
 
   const lesson = LESSONS[lessonIndex(lessonId)];
   const index = lessonIndex(lesson.id);
+
+  React.useEffect(() => {
+    return soundEngine.onChange(() => setAudioPhase(soundEngine.getState()));
+  }, []);
 
   const playMidis = React.useCallback((midis: number[], arpeggiate = false) => {
     if (arpeggiate) soundEngine.playScaleSequence(midis, 0.19);
@@ -76,9 +85,7 @@ export function CourseApp() {
         if (lesson.highlight === "sounding") {
           setShapeSteps(
             Array.from(
-              new Set(
-                midis.map((midi) => semitoneFromRoot(midi, rootPc))
-              )
+              new Set(midis.map((midi) => semitoneFromRoot(midi, rootPc)))
             )
           );
         }
@@ -89,6 +96,7 @@ export function CourseApp() {
   );
 
   const handleTriggerSingleMidi = React.useCallback((midi: number) => {
+    soundEngine.unlock();
     soundEngine.playMidi(midi, 0.55);
     setActiveMidis([midi]);
   }, []);
@@ -138,14 +146,20 @@ export function CourseApp() {
       return updated;
     });
     if (
-      next.visual === "keyboard" ||
+      next.visual === "staff" ||
+      next.visual === "grand" ||
       next.visual === "steps" ||
-      next.visual === "major"
+      next.visual === "major" ||
+      next.visual === "keys" ||
+      next.visual === "modes"
     ) {
       setSelectedScale(IONIAN);
     }
-    if (next.visual === "triads") setSelectedChord(CHORD_QUALITIES[0]);
+    if (next.visual === "triads" || next.visual === "inversions") {
+      setSelectedChord(CHORD_QUALITIES[0]);
+    }
     if (next.visual === "intervals") setIntervalSemitones(7);
+    if (next.visual === "minor") setIntervalSemitones(9);
     window.requestAnimationFrame(() => {
       document
         .getElementById("lesson-top")
@@ -154,9 +168,10 @@ export function CourseApp() {
   };
 
   const hearShape = () => {
+    soundEngine.unlock();
     const base = 60 + rootPc;
-    if (lesson.highlight === "octave") {
-      handlePlayNotes([base, base + 12], true);
+    if (lesson.highlight === "octave" || lesson.highlight === "home") {
+      handlePlayNotes(lesson.highlight === "octave" ? [base, base + 12] : [base], lesson.highlight === "octave");
       return;
     }
     if (lesson.highlight === "neighbors") {
@@ -186,23 +201,24 @@ export function CourseApp() {
         shapeSteps.map((step) => base + step),
         false
       );
-      return;
     }
-    if (lesson.highlight === "home") handlePlayNotes([base], false);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div
+      className="min-h-screen flex flex-col bg-background text-foreground"
+      onPointerDownCapture={() => soundEngine.unlock()}
+    >
       <header className="sticky top-0 z-40 border-b-2 border-border bg-white">
-        <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-base border-2 border-border bg-main">
               <Music className="size-4" />
             </div>
             <div className="min-w-0">
               <div className="font-heading leading-none">First Octave</div>
-              <p className="truncate text-xs text-foreground/65">
-                Music theory, one idea at a time
+              <p className="text-xs text-foreground/65">
+                {audioPhase === "running" ? "Sound is live" : "Tap once to start sound"}
               </p>
             </div>
           </div>
@@ -210,6 +226,7 @@ export function CourseApp() {
             size="sm"
             variant={isMuted ? "neutral" : "default"}
             onClick={() => {
+              soundEngine.unlock();
               const next = !isMuted;
               setIsMuted(next);
               soundEngine.setMuted(next);
@@ -229,7 +246,7 @@ export function CourseApp() {
       </header>
 
       <div className="flex flex-1 items-start">
-        <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-64 shrink-0 flex-col overflow-y-auto border-r-2 border-border bg-white px-4 py-5 lg:flex">
+        <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-52 shrink-0 flex-col overflow-y-auto border-r-2 border-border bg-white px-3 py-4 lg:flex">
           <PathNav
             lesson={lesson}
             index={index}
@@ -240,7 +257,7 @@ export function CourseApp() {
 
         <div className="min-w-0 flex-1">
           <div className="sticky top-14 z-30 border-b-2 border-border bg-background lg:hidden">
-            <div className="flex gap-1.5 overflow-x-auto px-4 py-2">
+            <div className="flex gap-1.5 overflow-x-auto px-3 py-2">
               {LESSONS.map((item, itemIndex) => (
                 <Button
                   key={item.id}
@@ -254,46 +271,30 @@ export function CourseApp() {
             </div>
           </div>
 
-          <main
-            id="lesson-top"
-            className="mx-auto w-full max-w-5xl scroll-mt-20 space-y-5 px-4 py-6 sm:px-6"
-          >
-            <Card size="sm">
-              <CardHeader>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="neutral">
-                    {lesson.chapter} · {index + 1} of {LESSONS.length}
-                  </Badge>
-                  <span className="text-xs text-foreground/60">
-                    Home note {CHROMATIC_NOTES[rootPc]} stays with you
-                  </span>
-                </div>
-                <CardTitle className="text-2xl sm:text-3xl">
-                  {lesson.title}
-                </CardTitle>
-                <CardDescription className="max-w-3xl text-sm text-foreground/80 sm:text-base">
-                  {lesson.teach}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-base border-2 border-border bg-main px-3 py-2 text-sm">
-                  <span className="font-heading">Try this. </span>
-                  {lesson.tryThis}
-                </div>
-              </CardContent>
-            </Card>
+          <main id="lesson-top" className="w-full scroll-mt-16 space-y-3 px-3 py-3 sm:px-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h1 className="font-heading text-xl sm:text-2xl">{lesson.title}</h1>
+              <p className="text-xs font-heading uppercase tracking-wide text-foreground/55">
+                {lesson.chapter} · {index + 1} / {LESSONS.length}
+              </p>
+            </div>
+            <p className="max-w-4xl text-sm leading-snug text-foreground/85">{lesson.teach}</p>
 
-            <InteractiveKeyboard
-              rootPc={rootPc}
-              highlightedPitchClasses={highlightedPitchClasses}
-              activeMidis={activeMidis}
-              labelMode={labelMode}
-              onLabelModeChange={setLabelMode}
-              scale={selectedScale}
-              onTriggerMidi={handleTriggerSingleMidi}
-              onSelectRoot={setRootPc}
-              onHearShape={lesson.highlight === "none" ? undefined : hearShape}
-            />
+            <div className="sticky top-[6.4rem] z-20 bg-background pb-1 lg:top-14">
+              <InstrumentStage
+                instrument={instrument}
+                onInstrumentChange={setInstrument}
+                rootPc={rootPc}
+                highlightedPitchClasses={highlightedPitchClasses}
+                activeMidis={activeMidis}
+                labelMode={labelMode}
+                onLabelModeChange={setLabelMode}
+                scale={selectedScale}
+                onTriggerMidi={handleTriggerSingleMidi}
+                onSelectRoot={setRootPc}
+                onHearShape={lesson.highlight === "none" ? undefined : hearShape}
+              />
+            </div>
 
             <section className="space-y-2">
               <h2 className="text-xs font-heading uppercase tracking-wide text-foreground/55">
@@ -302,6 +303,7 @@ export function CourseApp() {
               <LessonVisual
                 lesson={lesson}
                 rootPc={rootPc}
+                intervalSemitones={intervalSemitones}
                 selectedChord={selectedChord}
                 selectedScale={selectedScale}
                 onSelectRoot={setRootPc}
@@ -313,7 +315,16 @@ export function CourseApp() {
               />
             </section>
 
-            <div className="flex items-center justify-between gap-3 pb-6">
+            {lesson.exercise && (
+              <ExercisePanel
+                kind={lesson.exercise}
+                rootPc={rootPc}
+                scale={selectedScale}
+                activeMidis={activeMidis}
+              />
+            )}
+
+            <div className="flex items-center justify-between gap-3 pb-4">
               <Button
                 variant="neutral"
                 disabled={index === 0}
@@ -352,16 +363,14 @@ function PathNav({
 }) {
   return (
     <>
-      <div className="mb-4 space-y-2">
-        <div className="text-xs font-heading uppercase tracking-wide">
-          The path
-        </div>
+      <div className="mb-3 space-y-2">
+        <div className="text-xs font-heading uppercase tracking-wide">The path</div>
         <Progress value={((index + 1) / LESSONS.length) * 100} />
         <p className="text-xs text-foreground/65">
           Lesson {index + 1} of {LESSONS.length}
         </p>
       </div>
-      <nav className="space-y-4">
+      <nav className="space-y-3">
         {CHAPTERS.map((group) => (
           <div key={group.chapter}>
             <div className="mb-1 text-[11px] font-heading uppercase tracking-wider text-foreground/50">
@@ -376,19 +385,15 @@ function PathNav({
                   <button
                     key={item.id}
                     onClick={() => onSelect(item.id)}
-                    className={`flex w-full items-start gap-2 rounded-base border-2 px-2 py-1.5 text-left text-sm cursor-pointer ${
+                    className={`flex w-full items-center gap-2 rounded-base border-2 px-2 py-1.5 text-left text-sm cursor-pointer ${
                       active
                         ? "border-border bg-main font-heading"
                         : "border-transparent hover:border-border hover:bg-background"
                     }`}
                   >
-                    <span className="mt-0.5 w-4 shrink-0 font-mono text-[11px]">
-                      {number}
-                    </span>
-                    <span className="flex-1 leading-snug">{item.title}</span>
-                    {seen && !active && (
-                      <Check className="mt-0.5 size-3.5 shrink-0" />
-                    )}
+                    <span className="w-4 shrink-0 font-mono text-[11px]">{number}</span>
+                    <span className="flex-1 leading-snug">{item.short}</span>
+                    {seen && !active && <Check className="size-3.5 shrink-0" />}
                   </button>
                 );
               })}
@@ -403,6 +408,7 @@ function PathNav({
 function LessonVisual({
   lesson,
   rootPc,
+  intervalSemitones,
   selectedChord,
   selectedScale,
   onSelectRoot,
@@ -414,6 +420,7 @@ function LessonVisual({
 }: {
   lesson: Lesson;
   rootPc: number;
+  intervalSemitones: number;
   selectedChord: ChordQuality;
   selectedScale: ScaleDefinition;
   onSelectRoot: (pc: number) => void;
@@ -424,21 +431,59 @@ function LessonVisual({
   onIntervalChange: (interval: IntervalInfo) => void;
 }) {
   switch (lesson.visual) {
-    case "keyboard":
+    case "staff":
+      return <StaffLesson onPlayMidi={onPlayMidi} />;
+    case "grand":
+      return <GrandStaffLesson onPlayMidi={onPlayMidi} />;
+    case "rhythm":
+      return <RhythmLesson />;
+    case "meter":
+      return <MeterLesson />;
     case "steps":
-    case "major":
       return (
-        <PitchWalk kind={lesson.visual} rootPc={rootPc} onPlayMidi={onPlayMidi} />
+        <div className="space-y-3">
+          <StaffNotation
+            notes={[0, 1, 2].map((semi, noteIndex) => ({
+              midi: 60 + rootPc + semi,
+              color: noteIndex === 0 ? "#FACC00" : "#111111",
+            }))}
+          />
+          <PitchWalk kind="steps" rootPc={rootPc} onPlayMidi={onPlayMidi} />
+        </div>
       );
     case "intervals":
       return (
-        <IntervalWaveLab
-          embedded
-          rootPc={rootPc}
-          onPlayNotes={onPlayNotes}
-          onIntervalChange={onIntervalChange}
-        />
+        <div className="space-y-3">
+          <StaffNotation
+            notes={[
+              { midi: 60 + rootPc, color: "#FACC00" },
+              { midi: 60 + rootPc + intervalSemitones },
+            ]}
+          />
+          <IntervalWaveLab
+            embedded
+            rootPc={rootPc}
+            onPlayNotes={onPlayNotes}
+            onIntervalChange={onIntervalChange}
+          />
+        </div>
       );
+    case "major":
+      return (
+        <div className="space-y-3">
+          <StaffNotation
+            notes={MAJOR_STEPS.map((semi, noteIndex) => ({
+              midi: 60 + rootPc + semi,
+              color: noteIndex === 0 || noteIndex === MAJOR_STEPS.length - 1 ? "#FACC00" : "#111111",
+            }))}
+          />
+          <PitchWalk kind="major" rootPc={rootPc} onPlayMidi={onPlayMidi} />
+        </div>
+      );
+    case "keys":
+      return <KeySignatureLesson onPlayMidi={onPlayMidi} onSelectRoot={onSelectRoot} />;
+    case "minor":
+      return <MinorLesson onPlayMidi={onPlayMidi} onSelectRoot={onSelectRoot} />;
     case "modes":
       return (
         <ScaleModeLab
@@ -464,6 +509,8 @@ function LessonVisual({
           onPlayNotes={onPlayNotes}
         />
       );
+    case "inversions":
+      return <InversionLesson rootPc={rootPc} onPlay={onPlayNotes} />;
     case "motion":
       return <ChordFlowLab embedded rootPc={rootPc} onPlayNotes={onPlayNotes} />;
     case "time":

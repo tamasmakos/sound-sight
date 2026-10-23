@@ -489,7 +489,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "maj",
     seventhQuality: "maj7",
     semitoneOffset: 0,
-    tendency: "Center of gravity — complete rest & stability",
+    tendency: "Home. Rest.",
     color: "#FACC00",
   },
   {
@@ -500,7 +500,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "min",
     seventhQuality: "min7",
     semitoneOffset: 2,
-    tendency: "Pre-dominant launchpad — pulls strongly to V",
+    tendency: "Leans toward V.",
     color: "#38BDF8",
   },
   {
@@ -511,7 +511,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "min",
     seventhQuality: "min7",
     semitoneOffset: 4,
-    tendency: "Mediant — shares 2 notes with I; flows to vi or IV",
+    tendency: "Shares two notes with I.",
     color: "#00D696",
   },
   {
@@ -522,7 +522,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "maj",
     seventhQuality: "maj7",
     semitoneOffset: 5,
-    tendency: "Departure from home — sets up V or plagal return to I",
+    tendency: "Steps away from home.",
     color: "#7A83FF",
   },
   {
@@ -533,7 +533,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "maj",
     seventhQuality: "dom7",
     semitoneOffset: 7,
-    tendency: "Maximum harmonic magnet — leading tone resolves up to I",
+    tendency: "Pulls back to I.",
     color: "#FF4D50",
   },
   {
@@ -544,7 +544,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "min",
     seventhQuality: "min7",
     semitoneOffset: 9,
-    tendency: "Relative minor — emotional shadow of I; deceptive target",
+    tendency: "The minor shadow of I.",
     color: "#C084FC",
   },
   {
@@ -555,7 +555,7 @@ export const MAJOR_DIATONIC_DEGREES: DiatonicDegree[] = [
     triadQuality: "dim",
     seventhQuality: "m7b5",
     semitoneOffset: 11,
-    tendency: "Leading-tone triad — restless tritone collapsing into I",
+    tendency: "Collapses into I.",
     color: "#FF9F1C",
   },
 ];
@@ -572,37 +572,37 @@ export const PROGRESSION_PRESETS: ProgressionPreset[] = [
   {
     id: "pop-axis",
     name: "I – V – vi – IV",
-    genre: "Anthemic Pop",
+    genre: "Pop",
     degrees: [1, 5, 6, 4],
-    story: "Home → Tension → Deceptive Minor Turn → Warm Lift back Home.",
+    story: "Home, pull, shadow, lift.",
   },
   {
     id: "jazz-turnaround",
     name: "ii – V – I – vi",
-    genre: "Jazz Standard",
+    genre: "Jazz",
     degrees: [2, 5, 1, 6],
-    story: "Circle-of-fifths motion (D → G → C → Am) with silky 3rd/7th voice swaps.",
+    story: "Around the circle, back to home.",
   },
   {
     id: "royal-road",
     name: "IV – V – iii – vi",
-    genre: "J-Pop / Anime ('Royal Road')",
+    genre: "J-Pop",
     degrees: [4, 5, 3, 6],
-    story: "Evades the tonic I completely for continuous bittersweet forward momentum.",
+    story: "Never lands on I.",
   },
   {
     id: "fifties-doo-wop",
     name: "I – vi – IV – V",
-    genre: "Classic Soul / 50s",
+    genre: "Soul",
     degrees: [1, 6, 4, 5],
-    story: "Steps down in thirds from Tonic (I → vi → IV) before slingshotting via V.",
+    story: "Down in thirds, then V.",
   },
   {
     id: "classical-cadence",
     name: "I – IV – ii – V",
-    genre: "Classical Cadential Loop",
+    genre: "Classical",
     degrees: [1, 4, 2, 5],
-    story: "Textbook T → SD → SD → D functional architecture.",
+    story: "Home, away, away, pull.",
   },
 ];
 
