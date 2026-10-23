@@ -1,24 +1,19 @@
-# TEORIA // VISUAL LAB — Neobrutalist Music Theory Playground
+# First Octave
 
-An interactive music theory visual laboratory inspired by [Teoria.com](https://teoria.com/index.php) and built with the [Neobrutalism UI component library](https://www.neobrutalism.dev/docs/installation), Next.js, TypeScript, Tailwind CSS, and a real-time polyphonic Web Audio synthesizer.
+A music theory course you play. Each lesson is one idea — a place on the piano, a step, a named distance, a scale, a chord, a progression, a rhythm — and the piano stays in the center the whole way.
 
-## Visual Modules
+Switch the keyboard between note names and step numbers. The home note you choose follows you from lesson to lesson.
 
-1. **12-Tone Polygon & Circle of Fifths Clock (`HarmonicGeometryLab`)**
-   - Visualizes chords and scales as geometric polygons inscribed inside a 12-node pitch clock.
-   - Toggle seamlessly between **Chromatic (+1 semitone)** and **Circle of Fifths (+7 semitones)** geometry to see why diatonic scales form contiguous crescents and why Major (`4+3`) and Minor (`3+4`) triads are mirror triangles.
-2. **Interval Wave Interference & Lissajous Lab (`IntervalWaveLab`)**
-   - Real-time dual-frequency wave superposition oscilloscope and Lissajous knot generator showing why simple integer ratios (`3:2` Perfect Fifth, `5:4` Major Third) produce acoustic consonance while complex ratios (`16:15` Minor Second, `45:32` Tritone) create rapid wave beating.
-3. **Modal Brightness Spectrum & Step Ruler (`ScaleModeLab`)**
-   - Orders the 7 diatonic modes from brightest (**Lydian +3**) to darkest (**Locrian -3**), highlighting each mode's single "Spice Note" alongside a 12-semitone physical ruler.
-4. **Voice-Leading River & Functional Gravity Sequencer (`ChordFlowLab`)**
-   - Interactive 4-bar chord progression builder with a smooth voice-leading streamline graph showing common tones and minimal semitone glides across Tonic, Subdominant, and Dominant gravity zones.
-5. **Euclidean & Polyrhythm Orbit Radar (`PolyrhythmOrbitLab`)**
-   - Concentric spinning polygon sequencer (`3:2`, `4:3`, `5:4`, `3:8`) with a Least-Common-Multiple unrolled subdivision grid and synthesized percussion.
-6. **Teoria-Inspired Aural & Geometric Ear Gym (`TeoriaEarGym`)**
-   - Interactive ear-training drills for intervals, chord qualities, and modes with instant visual and acoustic feedback.
+## The path
 
-## Running Locally
+1. **Place** — letter names, then half steps and whole steps
+2. **Distance** — intervals you can see as waves
+3. **Path** — the major scale, then modes as a change of home
+4. **Harmony** — triads as shapes, then chords that lean toward home
+5. **Time** — two even pulses in one cycle
+6. **Ear** — name the sound, then check the picture
+
+## Running locally
 
 ```bash
 pnpm install

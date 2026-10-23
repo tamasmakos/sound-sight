@@ -42,7 +42,6 @@ export const ENHARMONIC_LABELS: Record<NoteName, string> = {
   B: "B",
 };
 
-// High-contrast Neobrutalist color per pitch class
 export const PITCH_COLORS: Record<number, string> = {
   0: "#FACC00", // C - Electric Yellow
   1: "#FF9F1C", // C# - Amber
@@ -629,6 +628,56 @@ export function midiToFreq(midi: number): number {
 
 export function noteNameFromPitchClass(pc: number): NoteName {
   return CHROMATIC_NOTES[((pc % 12) + 12) % 12];
+}
+
+/** Degree names measured from a major scale on the current home note. */
+export const MAJOR_DEGREE_LABELS = [
+  "1",
+  "♭2",
+  "2",
+  "♭3",
+  "3",
+  "4",
+  "♯4",
+  "5",
+  "♭6",
+  "6",
+  "♭7",
+  "7",
+] as const;
+
+const MAJOR_SCALE_OFFSETS = [0, 2, 4, 5, 7, 9, 11];
+
+export function semitoneFromRoot(pc: number, rootPc: number): number {
+  return (((pc - rootPc) % 12) + 12) % 12;
+}
+
+/**
+ * Label a pitch as a step from the home note.
+ * Seven-note scales use altered degree names (♭3, ♯4, ♭5).
+ * Other collections number the notes they contain, and name the rest
+ * the way a major scale would.
+ */
+export function stepLabel(
+  pc: number,
+  rootPc: number,
+  scale?: ScaleDefinition | null
+): string {
+  const distance = semitoneFromRoot(pc, rootPc);
+  if (!scale) return MAJOR_DEGREE_LABELS[distance];
+
+  const index = scale.intervals.indexOf(distance);
+  if (index === -1) return MAJOR_DEGREE_LABELS[distance];
+
+  if (scale.intervals.length !== 7) return String(index + 1);
+
+  const degree = index + 1;
+  const delta = distance - MAJOR_SCALE_OFFSETS[index];
+  if (delta === 0) return String(degree);
+  if (delta === -1) return `♭${degree}`;
+  if (delta === 1) return `♯${degree}`;
+  if (delta === -2) return `♭♭${degree}`;
+  return MAJOR_DEGREE_LABELS[distance];
 }
 
 export function midiToNoteLabel(midi: number): string {

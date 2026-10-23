@@ -24,6 +24,7 @@ interface ScaleModeLabProps {
   onSelectScale: (scale: ScaleDefinition) => void;
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
   onPlaySingleMidi: (midi: number) => void;
+  embedded?: boolean;
 }
 
 const BRIGHTNESS_MODES = [
@@ -42,6 +43,7 @@ export function ScaleModeLab({
   onSelectScale,
   onPlayNotes,
   onPlaySingleMidi,
+  embedded = false,
 }: ScaleModeLabProps) {
   const [activeStepIndex, setActiveStepIndex] = React.useState<number | null>(
     null
@@ -71,17 +73,16 @@ export function ScaleModeLab({
       <Card className="lg:col-span-7 bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Badge className="mb-1.5 bg-main text-main-foreground">
-                VISUAL INSIGHT #3 // MODES = BRIGHTNESS SPECTRUM
-              </Badge>
-              <CardTitle className="text-xl sm:text-2xl">
-                The Modal Brightness Thermometer & Step Ruler
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Instead of memorizing 7 disconnected Greek names, arrange the 7 modes from brightest (Lydian) to darkest (Locrian). Each step down flattens exactly ONE note!
-              </CardDescription>
-            </div>
+            {!embedded && (
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">
+                  Same seven notes, a new home
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Each step from bright to dark changes exactly one degree.
+                </CardDescription>
+              </div>
+            )}
             <Button size="sm" onClick={() => playFullScale(selectedScale)}>
               <Play className="size-4" />
               Play {CHROMATIC_NOTES[rootPc]} {selectedScale.name}
@@ -93,11 +94,11 @@ export function ScaleModeLab({
           {/* Brightness Spectrum Strip */}
           <div className="rounded-base border-2 border-border bg-background p-3 shadow-shadow">
             <div className="flex items-center justify-between text-xs font-heading mb-2">
-              <span className="flex items-center gap-1 text-amber-700">
-                <Sun className="size-4" /> BRIGHTEST (More Raised Intervals)
+              <span className="flex items-center gap-1">
+                <Sun className="size-4" /> Bright
               </span>
-              <span className="flex items-center gap-1 text-indigo-900">
-                DARKEST (More Lowered Intervals) <Moon className="size-4" />
+              <span className="flex items-center gap-1">
+                Dark <Moon className="size-4" />
               </span>
             </div>
 

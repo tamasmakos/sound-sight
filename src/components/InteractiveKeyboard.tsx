@@ -3,21 +3,23 @@
 import React from "react";
 import {
   CHROMATIC_NOTES,
-  PITCH_COLORS,
-  midiToFreq,
-  midiToNoteLabel,
+  ScaleDefinition,
+  stepLabel,
 } from "@/lib/music-theory";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Volume2, Sparkles } from "lucide-react";
+import { Volume2 } from "lucide-react";
+import type { LabelMode } from "@/lib/curriculum";
 
 interface InteractiveKeyboardProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  labelMode: LabelMode;
+  onLabelModeChange: (mode: LabelMode) => void;
+  scale: ScaleDefinition | null;
   onTriggerMidi: (midi: number) => void;
   onSelectRoot: (pc: number) => void;
-  onStrumHighlighted: () => void;
+  onHearShape?: () => void;
 }
 
 const WHITE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
@@ -29,286 +31,222 @@ const BLACK_KEY_OFFSETS: Record<number, number> = {
   10: 5.75,
 };
 
-// Computer keyboard bindings for C4 to E5
 const KEY_BINDINGS: Record<string, number> = {
-  a: 60, // C4
-  w: 61, // C#4
-  s: 62, // D4
-  e: 63, // D#4
-  d: 64, // E4
-  f: 65, // F4
-  t: 66, // F#4
-  g: 67, // G4
-  y: 68, // G#4
-  h: 69, // A4
-  u: 70, // A#4
-  j: 71, // B4
-  k: 72, // C5
-  o: 73, // C#5
-  l: 74, // D5
-  p: 75, // D#5
-  ";": 76, // E5
+  a: 60,
+  w: 61,
+  s: 62,
+  e: 63,
+  d: 64,
+  f: 65,
+  t: 66,
+  g: 67,
+  y: 68,
+  h: 69,
+  u: 70,
+  j: 71,
+  k: 72,
+  o: 73,
+  l: 74,
+  p: 75,
+  ";": 76,
 };
-
-const MIDI_TO_SHORTCUT: Record<number, string> = Object.entries(
-  KEY_BINDINGS
-).reduce(
-  (acc, [k, v]) => {
-    acc[v] = k.toUpperCase();
-    return acc;
-  },
-  {} as Record<number, string>
-);
 
 export function InteractiveKeyboard({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  labelMode,
+  onLabelModeChange,
+  scale,
   onTriggerMidi,
   onSelectRoot,
-  onStrumHighlighted,
+  onHearShape,
 }: InteractiveKeyboardProps) {
   React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        e.repeat ||
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
+        event.repeat ||
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
       ) {
         return;
       }
-      const midi = KEY_BINDINGS[e.key.toLowerCase()];
-      if (midi !== undefined) {
-        onTriggerMidi(midi);
-      }
+      const midi = KEY_BINDINGS[event.key.toLowerCase()];
+      if (midi !== undefined) onTriggerMidi(midi);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onTriggerMidi]);
 
-  // Build 2 octaves: C4 (60) to B5 (83) + C6 (84)
   const octaves = [4, 5];
-  const whiteKeys: { midi: number; pc: number; label: string }[] = [];
-  const blackKeys: {
-    midi: number;
-    pc: number;
-    label: string;
-    leftPercent: number;
-  }[] = [];
-
-  const totalWhiteCount = 15; // 7 * 2 + 1 (C6)
+  const whiteKeys: { midi: number; pc: number }[] = [];
+  const blackKeys: { midi: number; pc: number; leftPercent: number }[] = [];
+  const totalWhiteCount = 15;
 
   octaves.forEach((oct, octIdx) => {
     const baseMidi = (oct + 1) * 12;
     WHITE_SEMITONES.forEach((semi) => {
-      const midi = baseMidi + semi;
-      const pc = semi % 12;
-      whiteKeys.push({
-        midi,
-        pc,
-        label: `${CHROMATIC_NOTES[pc]}${oct}`,
-      });
+      whiteKeys.push({ midi: baseMidi + semi, pc: semi % 12 });
     });
-
     Object.entries(BLACK_KEY_OFFSETS).forEach(([semiStr, whiteOffset]) => {
       const semi = Number(semiStr);
-      const midi = baseMidi + semi;
-      const pc = semi % 12;
       const globalWhiteSlot = octIdx * 7 + whiteOffset;
-      const leftPercent = ((globalWhiteSlot + 0.12) / totalWhiteCount) * 100;
       blackKeys.push({
-        midi,
-        pc,
-        label: `${CHROMATIC_NOTES[pc]}${oct}`,
-        leftPercent,
+        midi: baseMidi + semi,
+        pc: semi % 12,
+        leftPercent: ((globalWhiteSlot + 0.12) / totalWhiteCount) * 100,
       });
     });
   });
 
-  // Add top C6
-  whiteKeys.push({
-    midi: 84,
-    pc: 0,
-    label: "C6",
-  });
+  whiteKeys.push({ midi: 84, pc: 0 });
 
-  const lastMidi = activeMidis[activeMidis.length - 1] ?? 60 + rootPc;
+  const labelFor = (pc: number) =>
+    labelMode === "notes"
+      ? CHROMATIC_NOTES[pc]
+      : stepLabel(pc, rootPc, scale);
+
+  const dimLabel = (pc: number) =>
+    labelMode === "steps" &&
+    highlightedPitchClasses.length > 0 &&
+    !highlightedPitchClasses.includes(pc);
 
   return (
-    <div className="rounded-base border-2 border-border bg-secondary-background shadow-shadow p-3 sm:p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className="bg-black text-white border-black font-mono text-xs px-2.5 py-1">
-            SYNTHESIS DECK // C4 – C6
-          </Badge>
-          <span className="text-xs sm:text-sm font-base text-foreground/80">
-            Click keys or type{" "}
-            <kbd className="px-1.5 py-0.5 text-xs font-mono bg-main border-2 border-border rounded-base">
-              A S D F G H J K L
-            </kbd>{" "}
-            to play live
+    <section className="rounded-base border-2 border-border bg-white shadow-shadow p-3 sm:p-4">
+      <div className="mb-3 flex w-full flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-xs font-heading uppercase tracking-wide">
+            Home
           </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-base border-2 border-border bg-background px-2.5 py-1 text-xs font-mono">
-            <span className="font-bold">LAST NOTE:</span>
-            <span
-              className="px-1.5 py-0.5 rounded-base border border-border font-bold"
-              style={{ backgroundColor: PITCH_COLORS[lastMidi % 12] }}
-            >
-              {midiToNoteLabel(lastMidi)}
-            </span>
-            <span>{midiToFreq(lastMidi).toFixed(1)} Hz</span>
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+            {CHROMATIC_NOTES.map((note, pc) => {
+              const isRoot = rootPc === pc;
+              return (
+                <button
+                  key={note}
+                  onClick={() => {
+                    onSelectRoot(pc);
+                    onTriggerMidi(60 + pc);
+                  }}
+                  className={`h-8 min-w-8 rounded-base border-2 border-border px-1.5 text-xs font-heading cursor-pointer shrink-0 ${
+                    isRoot ? "bg-main" : "bg-white hover:bg-background"
+                  }`}
+                >
+                  {note}
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          <Button size="xs" onClick={onStrumHighlighted}>
-            <Volume2 className="size-3.5" />
-            Play Active Shape
-          </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-base border-2 border-border bg-background p-0.5">
+            <Button
+              size="xs"
+              variant={labelMode === "notes" ? "default" : "neutral"}
+              className="shadow-none"
+              onClick={() => onLabelModeChange("notes")}
+            >
+              Notes
+            </Button>
+            <Button
+              size="xs"
+              variant={labelMode === "steps" ? "default" : "neutral"}
+              className="shadow-none"
+              onClick={() => onLabelModeChange("steps")}
+            >
+              Steps
+            </Button>
+          </div>
+          {onHearShape && (
+            <Button size="sm" onClick={onHearShape}>
+              <Volume2 className="size-4" />
+              Hear it
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Root Pitch Quick Selector Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar">
-        <span className="text-xs font-heading uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
-          <Sparkles className="size-3.5" /> Root Key:
-        </span>
-        {CHROMATIC_NOTES.map((note, pc) => {
-          const isRoot = rootPc === pc;
-          const isInHighlight = highlightedPitchClasses.includes(pc);
-          return (
-            <button
-              key={note}
-              onClick={() => {
-                onSelectRoot(pc);
-                onTriggerMidi(60 + pc);
-              }}
-              className={`px-2.5 py-1 rounded-base border-2 border-border text-xs font-heading transition-all cursor-pointer shrink-0 ${
-                isRoot
-                  ? "translate-x-[2px] translate-y-[2px] shadow-none ring-2 ring-black"
-                  : "shadow-[2px_2px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-              }`}
-              style={{
-                backgroundColor: isRoot
-                  ? PITCH_COLORS[pc]
-                  : isInHighlight
-                    ? `${PITCH_COLORS[pc]}55`
-                    : "#ffffff",
-              }}
-            >
-              {note}
-              {isRoot && " ★"}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Piano Keyboard */}
-      <div className="relative h-36 sm:h-44 w-full select-none overflow-hidden rounded-base border-2 border-border bg-black p-1">
+      <div className="relative h-44 sm:h-52 w-full select-none overflow-hidden rounded-base border-2 border-border bg-neutral-950 p-1">
         <div className="relative flex h-full w-full">
           {whiteKeys.map((key) => {
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
             const isActive = activeMidis.includes(key.midi);
             const isRoot = key.pc === rootPc;
-            const shortcut = MIDI_TO_SHORTCUT[key.midi];
-            const color = PITCH_COLORS[key.pc];
-
             return (
               <button
                 key={key.midi}
+                aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
                 onMouseDown={() => onTriggerMidi(key.midi)}
-                className={`relative flex-1 h-full border-r-2 last:border-r-0 border-black flex flex-col justify-between items-center pb-2 pt-1.5 transition-transform cursor-pointer ${
-                  isActive ? "translate-y-1" : "hover:bg-neutral-100"
+                className={`relative flex h-full flex-1 flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
+                  isActive ? "translate-y-0.5" : ""
                 }`}
                 style={{
                   backgroundColor: isActive
-                    ? color
+                    ? "var(--main)"
                     : isHighlighted
-                      ? `${color}66`
-                      : "#FFFFFF",
+                      ? "color-mix(in srgb, var(--main) 55%, white)"
+                      : "#ffffff",
                 }}
               >
-                <div className="flex flex-col items-center gap-0.5">
-                  {shortcut && (
-                    <span className="text-[10px] font-mono px-1 rounded border border-black/40 bg-white/80 text-black">
-                      {shortcut}
-                    </span>
-                  )}
-                  {isRoot && (
-                    <span className="text-[9px] font-heading px-1 rounded bg-black text-white">
-                      ROOT
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-center gap-1">
-                  {isHighlighted && (
-                    <span
-                      className="size-3 rounded-full border-2 border-black"
-                      style={{ backgroundColor: color }}
-                    />
-                  )}
-                  <span className="text-[11px] font-heading text-black">
-                    {key.label}
-                  </span>
-                </div>
+                {isRoot && (
+                  <span className="absolute inset-x-0 top-0 h-1.5 bg-black" />
+                )}
+                <span
+                  className={`font-heading text-xs sm:text-sm text-black ${
+                    dimLabel(key.pc) ? "opacity-35" : ""
+                  }`}
+                >
+                  {labelFor(key.pc)}
+                </span>
               </button>
             );
           })}
 
-          {/* Black Keys Overlay */}
           {blackKeys.map((key) => {
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
             const isActive = activeMidis.includes(key.midi);
             const isRoot = key.pc === rootPc;
-            const shortcut = MIDI_TO_SHORTCUT[key.midi];
-            const color = PITCH_COLORS[key.pc];
-
+            const lit = isHighlighted || isActive;
             return (
               <button
                 key={key.midi}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
+                aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
                   onTriggerMidi(key.midi);
                 }}
                 style={{
                   left: `${key.leftPercent}%`,
-                  width: "4.4%",
-                  backgroundColor: isActive
-                    ? color
-                    : isHighlighted
-                      ? color
-                      : "#141414",
+                  width: "4.6%",
+                  backgroundColor: lit ? "var(--main)" : "#161616",
                 }}
-                className={`absolute top-0 h-[62%] z-10 rounded-b-base border-2 border-black shadow-[2px_3px_0px_0px_rgba(0,0,0,0.85)] flex flex-col justify-between items-center py-1.5 transition-transform cursor-pointer ${
-                  isActive ? "translate-y-1" : ""
-                } ${
-                  isHighlighted || isActive ? "text-black" : "text-white"
-                }`}
+                className={`absolute top-0 z-10 flex h-[62%] flex-col items-center justify-end rounded-b-base border-2 border-black pb-1.5 cursor-pointer ${
+                  isActive ? "translate-y-0.5" : ""
+                } ${lit ? "text-black" : "text-white"}`}
               >
-                {shortcut ? (
-                  <span className="text-[9px] font-mono opacity-80">
-                    {shortcut}
-                  </span>
-                ) : (
-                  <span />
+                {isRoot && (
+                  <span className="absolute inset-x-0 top-0 h-1 bg-black" />
                 )}
-                <div className="flex flex-col items-center gap-0.5">
-                  {isRoot && (
-                    <span className="text-[8px] font-heading px-1 rounded bg-black text-[#FACC00]">
-                      R
-                    </span>
-                  )}
-                  <span className="text-[9px] font-heading leading-none">
-                    {CHROMATIC_NOTES[key.pc]}
-                  </span>
-                </div>
+                <span
+                  className={`font-heading text-[10px] leading-none sm:text-[11px] ${
+                    dimLabel(key.pc) ? "opacity-40" : ""
+                  }`}
+                >
+                  {labelFor(key.pc)}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
-    </div>
+
+      <p className="mt-2 text-xs text-foreground/65">
+        {labelMode === "steps"
+          ? `Steps count from ${CHROMATIC_NOTES[rootPc]}. 1 is home. The black bar marks home on the keys.`
+          : "Letter names. The same letter returns one octave higher."}{" "}
+        Letter keys A through L play along.
+      </p>
+    </section>
   );
 }
