@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { StaffNotation } from "@/components/StaffNotation";
 import {
   Ear,
   Volume2,
@@ -165,9 +166,9 @@ export function EarGym({ onPlayNotes }: EarGymProps) {
     totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 100;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
       {/* Left: Active Ear Training Challenge */}
-      <Card className="lg:col-span-7 bg-secondary-background">
+      <Card className="bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -298,6 +299,16 @@ export function EarGym({ onPlayNotes }: EarGymProps) {
                 <p className="text-xs font-mono mt-1.5 text-foreground/80">
                   {question.explanation}
                 </p>
+                <div className="mt-2">
+                  <StaffNotation
+                    clef={
+                      question.midis.reduce((sum, midi) => sum + midi, 0) / question.midis.length < 60
+                        ? "bass"
+                        : "treble"
+                    }
+                    notes={question.midis.map((midi) => ({ midi }))}
+                  />
+                </div>
               </div>
 
               <Button size="sm" onClick={() => handleNextQuestion(category)}>
@@ -310,7 +321,7 @@ export function EarGym({ onPlayNotes }: EarGymProps) {
       </Card>
 
       {/* Right: score and a short listening guide */}
-      <div className="lg:col-span-5 flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">

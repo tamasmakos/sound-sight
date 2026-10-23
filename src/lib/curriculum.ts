@@ -1,3 +1,5 @@
+import type { ExerciseKind } from "@/lib/exercises";
+
 export type LessonHighlight =
   | "octave"
   | "neighbors"
@@ -11,12 +13,18 @@ export type LessonHighlight =
 export type LabelMode = "notes" | "steps";
 
 export type LessonVisual =
-  | "keyboard"
+  | "staff"
+  | "grand"
+  | "rhythm"
+  | "meter"
   | "steps"
-  | "major"
   | "intervals"
+  | "major"
+  | "keys"
+  | "minor"
   | "modes"
   | "triads"
+  | "inversions"
   | "motion"
   | "time"
   | "ear";
@@ -27,103 +35,173 @@ export interface Lesson {
   short: string;
   title: string;
   teach: string;
-  tryThis: string;
   look: string;
   highlight: LessonHighlight;
   labelMode: LabelMode;
   visual: LessonVisual;
+  exercise?: ExerciseKind;
 }
 
 /**
- * The course walks one idea at a time:
- * a place on the piano, the smallest move, a named distance,
- * a path of steps, the same path with a new home, stacked steps,
- * chords that lean, time, then the ear.
+ * Reading first, then pitch as geometry, then keys, harmony, time, and the ear.
+ * Each lesson is a picture you can play, then a short check.
  */
 export const LESSONS: Lesson[] = [
   {
-    id: "keyboard",
-    chapter: "Place",
-    short: "Keys",
-    title: "One key is one note",
+    id: "staff",
+    chapter: "Reading",
+    short: "Lines",
+    title: "Five lines, four spaces",
     teach:
-      "The piano is a map of pitch. White keys carry the letter names C D E F G A B. Black keys sit in the cracks and borrow a neighbor’s name, raised or lowered. Play any key. The name under your finger is the whole idea: a note is a place you can point to.",
-    tryThis:
-      "Play the low C, then the high C. Same letter. The second one is an octave higher — the name has come back.",
-    look: "An octave, drawn once",
-    highlight: "octave",
+      "The staff is a ladder. Lines and spaces alternate, and each rung is the next letter. The middle line of the treble staff is B4. Count letters up or down from that axis.",
+    look: "Click a rung. The note and the piano agree.",
+    highlight: "home",
     labelMode: "notes",
-    visual: "keyboard",
+    visual: "staff",
+    exercise: "name-note",
+  },
+  {
+    id: "grand",
+    chapter: "Reading",
+    short: "Clefs",
+    title: "Two staves, one middle C",
+    teach:
+      "Treble and bass are mirrors around middle C. The same letter sits on a line in one clef and a space in the other. Middle C is the ledger line between them.",
+    look: "The grand staff, folded around one note.",
+    highlight: "home",
+    labelMode: "notes",
+    visual: "grand",
+    exercise: "find-note",
+  },
+  {
+    id: "rhythm",
+    chapter: "Pulse",
+    short: "Lengths",
+    title: "A bar cut into equal pieces",
+    teach:
+      "A whole note fills the bar. Cut it in half, then half again, and you get halves, quarters, and eighths. The picture is the same rectangle, divided into more equal cells.",
+    look: "One bar, four ways of cutting it.",
+    highlight: "home",
+    labelMode: "notes",
+    visual: "rhythm",
+    exercise: "duration",
+  },
+  {
+    id: "meter",
+    chapter: "Pulse",
+    short: "Meter",
+    title: "Groups, and a strong beat",
+    teach:
+      "Meter is how the bar is grouped. The first cell of each group is the strong beat. 4/4 is four equal beats. 6/8 is two groups of three.",
+    look: "Strong beats in yellow.",
+    highlight: "home",
+    labelMode: "notes",
+    visual: "meter",
+    exercise: "meter",
   },
   {
     id: "steps",
-    chapter: "Place",
+    chapter: "Pitch",
     short: "Steps",
-    title: "The smallest move",
+    title: "Half step, whole step",
     teach:
-      "From any key to the very next key, white or black, is a half step. Skip one key and you have moved a whole step. Switch the piano from note names to step numbers. Home is 1. The next key is ♭2, one half step up. The key after that is 2, a whole step above home.",
-    tryThis:
-      "Turn on Steps. Play 1, then the next key, then 2. Say “half” for the first move and “whole” for both moves together.",
-    look: "A half step, then a whole step",
+      "The next key, white or black, is a half step. Skip one key and the move is a whole step. On the staff a half step can stay on the same letter. A whole step usually changes letter.",
+    look: "Home, one key up, two keys up.",
     highlight: "neighbors",
     labelMode: "steps",
     visual: "steps",
+    exercise: "half-whole",
   },
   {
     id: "intervals",
-    chapter: "Distance",
+    chapter: "Pitch",
     short: "Intervals",
-    title: "A distance with a name",
+    title: "A distance with a shape",
     teach:
-      "Once you can count, each distance gets a name. That name is an interval. A perfect fifth is seven half steps, and its two waves meet often, in a simple 3 to 2 ratio, which is why it sounds solid. A minor second is one half step, and the waves beat against each other. The picture and the piano are the same two notes.",
-    tryThis:
-      "Choose the perfect fifth. Listen to the two notes together, then find 1 and 5 on the piano and play them yourself.",
-    look: "Two notes, and the waves they make",
+      "Count the half steps and the interval has a name. Simple ratios draw open loops. Dense ratios knot. The staff, the ruler, and the two keys are the same distance.",
+    look: "Two notes, their waves, and a 13-cell ruler.",
     highlight: "interval",
     labelMode: "steps",
     visual: "intervals",
+    exercise: "interval",
   },
   {
     id: "major",
-    chapter: "Path",
+    chapter: "Pitch",
     short: "Major",
-    title: "A walk called major",
+    title: "A walk of whole and half",
     teach:
-      "A major scale is not a list to memorize. It is a walk from home: whole, whole, half, whole, whole, whole, half. In step numbers that walk reads 1 2 3 4 5 6 7 and back to 1. The short moves always fall in the same two places — between 3 and 4, and between 7 and 1.",
-    tryThis:
-      "Play the walk and watch which moves are short. Then play 1 through 7 on the piano with step labels on.",
-    look: "Whole steps and half steps, in order",
+      "Major is a path, not a list: whole, whole, half, whole, whole, whole, half. The short moves always sit between 3 and 4, and between 7 and 1.",
+    look: "The scale on the staff, then the walk.",
     highlight: "scale",
     labelMode: "steps",
     visual: "major",
+    exercise: "scale-degree",
+  },
+  {
+    id: "keys",
+    chapter: "Keys",
+    short: "Signatures",
+    title: "Fifths add one accidental",
+    teach:
+      "Clockwise is up a fifth and one new sharp. Counterclockwise is down a fifth and one new flat. The signature is those accidentals, written on the letters they change.",
+    look: "The circle, and the signature on the staff.",
+    highlight: "scale",
+    labelMode: "notes",
+    visual: "keys",
+    exercise: "key-signature",
+  },
+  {
+    id: "minor",
+    chapter: "Keys",
+    short: "Minor",
+    title: "The same signature, three semitones down",
+    teach:
+      "Relative minor shares every accidental with its major. Its home is a minor third under the major home — the same flip that turns a major triad minor.",
+    look: "Two homes, one signature.",
+    highlight: "interval",
+    labelMode: "steps",
+    visual: "minor",
+    exercise: "relative-minor",
   },
   {
     id: "modes",
-    chapter: "Path",
+    chapter: "Keys",
     short: "Modes",
-    title: "The same notes, a new home",
+    title: "Move home, one degree changes",
     teach:
-      "Keep a major scale’s notes and start somewhere else. You did not learn seven new scales. You moved home. Each new home changes one degree compared with the mode beside it. Brighter modes raise a degree. Darker modes lower one. The step numbers on the piano show which degree moved.",
-    tryThis:
-      "Start at the bright end and step toward the dark end. Listen once before you look for the number that changed.",
-    look: "Seven homes, from bright to dark",
+      "A mode keeps a scale’s notes and starts on a new degree. Against major, one step is raised or lowered. Brighter modes raise a degree. Darker modes lower one.",
+    look: "Seven homes, bright to dark.",
     highlight: "scale",
     labelMode: "steps",
     visual: "modes",
+    exercise: "mode-shift",
   },
   {
     id: "triads",
     chapter: "Harmony",
-    short: "Chords",
-    title: "Steps 1, 3, and 5",
+    short: "Triads",
+    title: "1, 3, and 5 make a triangle",
     teach:
-      "A chord is a scale stacked, not a new alphabet. Take 1, skip to 3, skip to 5. Those three notes draw a triangle. Major is four half steps, then three. Minor flips that: three, then four. The fifth stays. Only step 3 changes, and that is the difference between bright and dark.",
-    tryThis:
-      "Switch between major and minor. Read the piano. You should see 1 3 5, then 1 ♭3 5.",
-    look: "The chord, drawn on a clock",
+      "Stack every other scale step and you get a chord. Major is 4 half steps then 3. Minor flips that. A diminished triangle is tighter. An augmented one is equal on every side.",
+    look: "The chord, drawn on a 12-hour clock.",
     highlight: "chord",
     labelMode: "steps",
     visual: "triads",
+    exercise: "chord-quality",
+  },
+  {
+    id: "inversions",
+    chapter: "Harmony",
+    short: "Inversions",
+    title: "Turn the triangle, the bass changes",
+    teach:
+      "The same three notes, with a different corner on the bottom. Root puts 1 in the bass. First inversion puts 3 there. Second puts 5 there. The shape rotates. The pitch set does not.",
+    look: "One triangle, three basses.",
+    highlight: "chord",
+    labelMode: "steps",
+    visual: "inversions",
+    exercise: "inversion",
   },
   {
     id: "motion",
@@ -131,38 +209,34 @@ export const LESSONS: Lesson[] = [
     short: "Motion",
     title: "Chords lean toward home",
     teach:
-      "A progression is a sentence. The I chord rests. IV and ii step away from home. V leans back, because one of its notes sits a half step under 1 and wants to rise. A good voice barely moves: it stays, or it slides by a step or two.",
-    tryThis:
-      "Start the loop and follow a single voice. If it jumps across the piano, the line is working too hard.",
-    look: "Four chords, and how the voices move",
+      "I rests. IV and ii step away. V pulls back, because one note sits a half step under home. A voice should stay, or move by a step.",
+    look: "Seven degrees, then four bars.",
     highlight: "sounding",
     labelMode: "steps",
     visual: "motion",
+    exercise: "cadence",
   },
   {
     id: "time",
-    chapter: "Time",
-    short: "Time",
-    title: "Two even pulses, one cycle",
+    chapter: "Cycles",
+    short: "Cycles",
+    title: "Two even pulses, one wheel",
     teach:
-      "Everything so far was a step across the keyboard. Rhythm is a step across time. A polyrhythm is two steady pulses that share a downbeat and disagree in between. Three against two means one part cuts the cycle into three equal hits, the other into two. They meet again only when the wheel returns to the top.",
-    tryThis:
-      "Start the wheel. Count the outer hits, then the inner. Tap the home note each time the hand passes the top.",
-    look: "Two polygons sharing one cycle",
+      "Three against two cuts one cycle into two polygons. They share the top of the wheel and disagree until the cycle closes. That single shared point is the downbeat.",
+    look: "Two polygons on one circle.",
     highlight: "home",
     labelMode: "notes",
     visual: "time",
+    exercise: "rhythm-count",
   },
   {
     id: "ear",
     chapter: "Ear",
     short: "Ear",
-    title: "Hear it, then check",
+    title: "Hear it, then see it",
     teach:
-      "The pictures were a way in. This lesson waits to show them until you answer. You will hear an interval, then a chord, then a mode — the same order you just walked. Guess from the sound, then look. The note after you answer names the steps you already know.",
-    tryThis:
-      "Play the prompt twice before you choose. Hum the lower note first, so every other note has a home to stand on.",
-    look: "Listen first. The picture comes after your answer.",
+      "Name the interval, the chord, or the mode from the sound. The staff appears after you answer, so the picture confirms what you already heard.",
+    look: "Listen first.",
     highlight: "none",
     labelMode: "notes",
     visual: "ear",

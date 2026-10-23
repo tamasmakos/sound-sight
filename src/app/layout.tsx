@@ -17,7 +17,7 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "First Octave — music theory, one idea at a time",
   description:
-    "A played course in music theory. Learn notes, steps, intervals, scales, chords, and rhythm on one piano.",
+    "A played course in music theory. Read the staff, then steps, keys, chords, and rhythm, on piano or guitar.",
 };
 
 export default function RootLayout({
