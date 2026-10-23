@@ -23,6 +23,18 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Play, RotateCcw, Orbit, Compass, Triangle } from "lucide-react";
 
+const CHORD_SHORT: Record<string, string> = {
+  maj: "Major",
+  min: "Minor",
+  dim: "Dim",
+  aug: "Aug",
+  sus4: "Sus4",
+  maj7: "Maj7",
+  dom7: "Dom7",
+  min7: "Min7",
+  dim7: "Dim7",
+};
+
 interface HarmonicGeometryLabProps {
   rootPc: number;
   onSelectRoot: (pc: number) => void;
@@ -98,9 +110,9 @@ export function HarmonicGeometryLab({
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-2">
       {/* Left Column: Interactive SVG Polygon Clock */}
-      <Card className="lg:col-span-7 bg-secondary-background">
+      <Card className="bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!embedded && (
@@ -370,7 +382,7 @@ export function HarmonicGeometryLab({
       </Card>
 
       {/* Right Column: Shape Controls & Symmetry Inspector */}
-      <div className="lg:col-span-5 flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -378,11 +390,11 @@ export function HarmonicGeometryLab({
               Choose a chord
             </CardTitle>
             <CardDescription>
-              Watch how symmetric shapes (Augmented = equilateral triangle, Diminished 7th = square) sound floating and restless, while asymmetric shapes feel grounded.
+              Equal sides float. Uneven sides sit down.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {CHORD_QUALITIES.map((chord) => {
                 const isSelected = selectedChord.id === chord.id;
                 return (
@@ -410,8 +422,8 @@ export function HarmonicGeometryLab({
                         {chord.intervals.join("-")}
                       </span>
                     </div>
-                    <div className="text-xs font-base mt-1 truncate">
-                      {chord.name}
+                    <div className="mt-1 text-xs leading-tight">
+                      {CHORD_SHORT[chord.id] ?? chord.name}
                     </div>
                   </button>
                 );

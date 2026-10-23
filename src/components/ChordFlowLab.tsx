@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Play, Square, GitBranch, Sparkles, ArrowRight } from "lucide-react";
+import { Play, Square, GitBranch, Sparkles } from "lucide-react";
 
 interface ChordFlowLabProps {
   rootPc: number;
@@ -125,9 +125,9 @@ export function ChordFlowLab({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 gap-3">
       {/* Left: Voice Leading River & 4-Bar Sequencer */}
-      <Card className="lg:col-span-7 bg-secondary-background">
+      <Card className="bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!embedded && (
@@ -364,37 +364,29 @@ export function ChordFlowLab({
       </Card>
 
       {/* Right: Functional Gravity Map & Preset Progressions */}
-      <div className="lg:col-span-5 flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         <Card>
           <CardHeader className="border-b-2 border-border">
             <CardTitle className="flex items-center gap-2 text-lg">
               <GitBranch className="size-5" />
-              Harmonic Gravity Map (Assign to Bar {activeSlot + 1})
+              Bar {activeSlot + 1}
             </CardTitle>
-            <CardDescription>
-              Every diatonic chord belongs to one of 3 gravity zones:{" "}
-              <strong>Tonic (Home)</strong> →{" "}
-              <strong>Subdominant (Bridge)</strong> →{" "}
-              <strong>Dominant (Magnet back Home)</strong>.
-            </CardDescription>
           </CardHeader>
 
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-center justify-between rounded-base border-2 border-border bg-background p-2.5 text-xs font-heading">
-              <span className="px-2 py-1 rounded bg-[#FACC00] border border-black">
-                Tonic (I, vi, iii)
+          <CardContent className="space-y-3 pt-4">
+            <div className="grid grid-cols-3 gap-2 text-center text-xs font-heading">
+              <span className="rounded-base border-2 border-border bg-[#FACC00] px-2 py-1.5">
+                Home
               </span>
-              <ArrowRight className="size-4" />
-              <span className="px-2 py-1 rounded bg-[#38BDF8] border border-black">
-                Subdominant (IV, ii)
+              <span className="rounded-base border-2 border-border bg-[#38BDF8] px-2 py-1.5">
+                Away
               </span>
-              <ArrowRight className="size-4" />
-              <span className="px-2 py-1 rounded bg-[#FF4D50] text-white border border-black">
-                Dominant (V, vii°)
+              <span className="rounded-base border-2 border-border bg-[#FF4D50] px-2 py-1.5 text-white">
+                Pull
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {MAJOR_DIATONIC_DEGREES.map((deg) => {
                 const info = getChordInfoForDegree(deg.degree);
                 const isSelectedInActiveBar =
@@ -404,10 +396,10 @@ export function ChordFlowLab({
                   <button
                     key={deg.degree}
                     onClick={() => setSlotDegree(activeSlot, deg.degree)}
-                    className={`p-2.5 rounded-base border-2 border-border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                    className={`min-h-14 rounded-base border-2 border-border px-1 py-1.5 text-center cursor-pointer ${
                       isSelectedInActiveBar
                         ? "translate-x-[2px] translate-y-[2px] shadow-none ring-2 ring-black"
-                        : "bg-background shadow-[3px_3px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+                        : "bg-background shadow-[2px_2px_0px_0px_#000]"
                     }`}
                     style={{
                       backgroundColor: isSelectedInActiveBar
@@ -415,27 +407,15 @@ export function ChordFlowLab({
                         : undefined,
                     }}
                   >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-heading text-base">
-                          {info.romanLabel} — {info.chordName}
-                        </span>
-                        <Badge variant="neutral" className="text-[10px]">
-                          {deg.functionGroup}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-foreground/80 mt-0.5">
-                        {deg.tendency}
-                      </div>
-                    </div>
-
-                    <span className="text-xs font-mono px-2 py-1 rounded bg-white border border-black shrink-0">
-                      Set Bar {activeSlot + 1}
-                    </span>
+                    <div className="font-heading text-sm leading-none">{info.romanLabel}</div>
+                    <div className="mt-1 text-[10px] leading-tight">{info.chordName}</div>
                   </button>
                 );
               })}
             </div>
+            <p className="text-sm">
+              {MAJOR_DIATONIC_DEGREES.find((deg) => deg.degree === progressionDegrees[activeSlot])?.tendency}
+            </p>
           </CardContent>
         </Card>
 

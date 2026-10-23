@@ -1,17 +1,18 @@
 # First Octave
 
-A music theory course you play. Each lesson is one idea — a place on the piano, a step, a named distance, a scale, a chord, a progression, a rhythm — and the piano stays in the center the whole way.
+A music theory course you play. Lessons start with the staff, then steps, intervals, keys, chords, and time. Every lesson is a picture: lines, groups, clocks, and waves. A short exercise checks the idea before you move on.
 
-Switch the keyboard between note names and step numbers. The home note you choose follows you from lesson to lesson.
+The instrument stays on screen. Switch between piano and guitar, and between note names and step numbers. The home note you choose follows you from lesson to lesson. Tap once if the browser has not started sound yet.
 
 ## The path
 
-1. **Place** — letter names, then half steps and whole steps
-2. **Distance** — intervals you can see as waves
-3. **Path** — the major scale, then modes as a change of home
-4. **Harmony** — triads as shapes, then chords that lean toward home
-5. **Time** — two even pulses in one cycle
-6. **Ear** — name the sound, then check the picture
+1. **Reading** — the treble ladder, then treble and bass around middle C
+2. **Pulse** — bar lengths, then meter groups
+3. **Pitch** — half and whole steps, intervals, the major walk
+4. **Keys** — the circle of fifths, relative minor, modes
+5. **Harmony** — triads as triangles, inversions, chords that lean
+6. **Cycles** — two even pulses on one wheel
+7. **Ear** — name the sound, then see it on the staff
 
 ## Running locally
 

@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Waves, Play, Sparkles, Activity } from "lucide-react";
+import { Play, Sparkles } from "lucide-react";
 
 interface IntervalWaveLabProps {
   rootPc: number;
@@ -142,9 +142,9 @@ export function IntervalWaveLab({
   const targetPc = targetMidi % 12;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 gap-3">
       {/* Left: Wave Superposition + Lissajous Physics */}
-      <Card className="lg:col-span-7 bg-secondary-background">
+      <Card className="bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!embedded && (
@@ -210,8 +210,8 @@ export function IntervalWaveLab({
           </div>
 
           {/* Bottom Split: Lissajous Figure + Interval Physics Readout */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-stretch">
-            <div className="sm:col-span-5 rounded-base border-2 border-border bg-background p-3 flex flex-col items-center justify-center shadow-[3px_3px_0px_0px_#000]">
+          <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
+            <div className="flex flex-col items-center justify-center rounded-base border-2 border-border bg-background p-3 shadow-[3px_3px_0px_0px_#000]">
               <div className="text-xs font-mono uppercase mb-1 font-bold">
                 Lissajous Knot ({selectedInterval.ratioLabel})
               </div>
@@ -241,7 +241,7 @@ export function IntervalWaveLab({
               </span>
             </div>
 
-            <div className="sm:col-span-7 rounded-base border-2 border-border bg-background p-4 flex flex-col justify-between shadow-[3px_3px_0px_0px_#000]">
+            <div className="flex flex-col justify-between rounded-base border-2 border-border bg-background p-4 shadow-[3px_3px_0px_0px_#000]">
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <Badge
@@ -299,66 +299,28 @@ export function IntervalWaveLab({
         </CardContent>
       </Card>
 
-      {/* Right: All 13 Intervals Matrix */}
-      <Card className="lg:col-span-5">
-        <CardHeader className="border-b-2 border-border">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Waves className="size-5" />
-            Choose a distance
-          </CardTitle>
-          <CardDescription>
-            Each row is a number of half steps up from{" "}
-            <strong>{CHROMATIC_NOTES[rootPc]}</strong>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {INTERVALS.map((interval) => {
-              const isSelected =
-                selectedInterval.semitones === interval.semitones;
-              const noteName =
-                CHROMATIC_NOTES[(rootPc + interval.semitones) % 12];
-
-              return (
-                <button
-                  key={interval.semitones}
-                  onClick={() => {
-                    setSelectedInterval(interval);
-                    onPlayNotes(
-                      [rootMidi, rootMidi + interval.semitones],
-                      false
-                    );
-                  }}
-                  className={`p-2.5 rounded-base border-2 border-border text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? "translate-x-[2px] translate-y-[2px] shadow-none ring-2 ring-black"
-                      : "bg-background shadow-[3px_3px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-                  }`}
-                  style={{
-                    backgroundColor: isSelected ? interval.color : undefined,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-heading text-sm">
-                      {interval.shortName} • {CHROMATIC_NOTES[rootPc]}→{noteName}
-                    </span>
-                    <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-white border border-black">
-                      {interval.ratioLabel}
-                    </span>
-                  </div>
-                  <div className="text-xs font-base mt-0.5 truncate">
-                    {interval.name}
-                  </div>
-                  <div className="flex items-center gap-1 mt-1 text-[10px] font-mono opacity-80">
-                    <Activity className="size-3" />
-                    {interval.semitones} semitones • {interval.consonance}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="overflow-x-auto rounded-base border-2 border-border bg-white p-2">
+        <div className="grid min-w-[40rem] grid-cols-[repeat(13,minmax(0,1fr))] gap-1">
+          {INTERVALS.map((interval) => {
+            const isSelected = selectedInterval.semitones === interval.semitones;
+            return (
+              <button
+                key={interval.semitones}
+                onClick={() => {
+                  setSelectedInterval(interval);
+                  onPlayNotes([rootMidi, rootMidi + interval.semitones], false);
+                }}
+                className={`flex h-14 flex-col items-center justify-center rounded-base border-2 border-border px-1 text-center cursor-pointer ${
+                  isSelected ? "bg-main" : "bg-white"
+                }`}
+              >
+                <span className="font-heading text-xs leading-none">{interval.shortName}</span>
+                <span className="mt-1 font-mono text-[10px] leading-none">{interval.semitones}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

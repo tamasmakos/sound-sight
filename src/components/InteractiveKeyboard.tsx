@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Volume2 } from "lucide-react";
 import type { LabelMode } from "@/lib/curriculum";
+import { soundEngine } from "@/lib/audio-engine";
 
 interface InteractiveKeyboardProps {
   rootPc: number;
@@ -20,6 +21,7 @@ interface InteractiveKeyboardProps {
   onTriggerMidi: (midi: number) => void;
   onSelectRoot: (pc: number) => void;
   onHearShape?: () => void;
+  bare?: boolean;
 }
 
 const WHITE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
@@ -61,6 +63,7 @@ export function InteractiveKeyboard({
   onTriggerMidi,
   onSelectRoot,
   onHearShape,
+  bare = false,
 }: InteractiveKeyboardProps) {
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -111,8 +114,14 @@ export function InteractiveKeyboard({
     highlightedPitchClasses.length > 0 &&
     !highlightedPitchClasses.includes(pc);
 
+  const playKey = (midi: number) => {
+    soundEngine.unlock();
+    onTriggerMidi(midi);
+  };
+
   return (
-    <section className="rounded-base border-2 border-border bg-white shadow-shadow p-3 sm:p-4">
+    <section className={bare ? "" : "rounded-base border-2 border-border bg-white p-3 shadow-shadow sm:p-4"}>
+      {!bare && (
       <div className="mb-3 flex w-full flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="shrink-0 text-xs font-heading uppercase tracking-wide">
@@ -166,8 +175,9 @@ export function InteractiveKeyboard({
           )}
         </div>
       </div>
+      )}
 
-      <div className="relative h-44 sm:h-52 w-full select-none overflow-hidden rounded-base border-2 border-border bg-neutral-950 p-1">
+      <div className="relative h-32 w-full select-none overflow-hidden rounded-base border-2 border-border bg-neutral-950 p-1 sm:h-36">
         <div className="relative flex h-full w-full">
           {whiteKeys.map((key) => {
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
@@ -177,7 +187,10 @@ export function InteractiveKeyboard({
               <button
                 key={key.midi}
                 aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
-                onMouseDown={() => onTriggerMidi(key.midi)}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  playKey(key.midi);
+                }}
                 className={`relative flex h-full flex-1 flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
                   isActive ? "translate-y-0.5" : ""
                 }`}
@@ -212,9 +225,10 @@ export function InteractiveKeyboard({
               <button
                 key={key.midi}
                 aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
-                onMouseDown={(event) => {
+                onPointerDown={(event) => {
+                  event.preventDefault();
                   event.stopPropagation();
-                  onTriggerMidi(key.midi);
+                  playKey(key.midi);
                 }}
                 style={{
                   left: `${key.leftPercent}%`,
@@ -241,12 +255,14 @@ export function InteractiveKeyboard({
         </div>
       </div>
 
+      {!bare && (
       <p className="mt-2 text-xs text-foreground/65">
         {labelMode === "steps"
           ? `Steps count from ${CHROMATIC_NOTES[rootPc]}. 1 is home. The black bar marks home on the keys.`
           : "Letter names. The same letter returns one octave higher."}{" "}
         Letter keys A through L play along.
       </p>
+      )}
     </section>
   );
 }

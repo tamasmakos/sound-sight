@@ -68,9 +68,9 @@ export function ScaleModeLab({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 gap-3">
       {/* Left: Brightness Slider & 12-Semitone Staircase Ruler */}
-      <Card className="lg:col-span-7 bg-secondary-background">
+      <Card className="bg-secondary-background">
         <CardHeader className="border-b-2 border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {!embedded && (
@@ -102,7 +102,8 @@ export function ScaleModeLab({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-7 gap-1.5">
+            <div className="overflow-x-auto">
+            <div className="grid min-w-[42rem] grid-cols-7 gap-1.5">
               {BRIGHTNESS_MODES.map((modeId) => {
                 const mode = SCALES.find((s) => s.id === modeId)!;
                 const isSelected = selectedScale.id === mode.id;
@@ -129,12 +130,13 @@ export function ScaleModeLab({
                     <div className="font-heading text-xs mt-1.5 leading-tight">
                       {mode.name.replace(" Mode", "").replace(" (Ionian)", "").replace(" (Aeolian)", "")}
                     </div>
-                    <div className="text-[10px] font-mono text-foreground/75 mt-1 truncate">
+                    <div className="mt-1 text-[10px] leading-tight text-foreground/75">
                       {mode.characterNote}
                     </div>
                   </button>
                 );
               })}
+            </div>
             </div>
           </div>
 
@@ -242,7 +244,7 @@ export function ScaleModeLab({
       </Card>
 
       {/* Right: Complete Scale Library & Parallel Difference Matrix */}
-      <Card className="lg:col-span-5">
+      <Card>
         <CardHeader className="border-b-2 border-border">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Layers className="size-5" />
