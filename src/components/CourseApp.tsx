@@ -38,7 +38,7 @@ import {
 } from "@/components/ReadingDesk";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Check, Music, Volume2, VolumeX } from "lucide-react";
+import { Check, Music, Volume2 } from "lucide-react";
 
 const IONIAN = SCALES.find((scale) => scale.id === "ionian")!;
 const CHAPTERS = lessonsByChapter();
@@ -60,13 +60,13 @@ export function CourseApp() {
   const [intervalSemitones, setIntervalSemitones] = React.useState(7);
   const [labelMode, setLabelMode] = React.useState<LabelMode>("notes");
   const [instrument, setInstrument] = React.useState<InstrumentId>("piano");
-  const [isMuted, setIsMuted] = React.useState(false);
   const [audioPhase, setAudioPhase] = React.useState<AudioPhase>("unready");
 
   const lesson = LESSONS[lessonIndex(lessonId)];
   const index = lessonIndex(lesson.id);
 
   React.useEffect(() => {
+    soundEngine.bind();
     return soundEngine.onChange(() => setAudioPhase(soundEngine.getState()));
   }, []);
 
@@ -205,10 +205,7 @@ export function CourseApp() {
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col bg-background text-foreground"
-      onPointerDownCapture={() => soundEngine.unlock()}
-    >
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b-2 border-border bg-white">
         <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -218,29 +215,19 @@ export function CourseApp() {
             <div className="min-w-0">
               <div className="font-heading leading-none">First Octave</div>
               <p className="text-xs text-foreground/65">
-                {audioPhase === "running" ? "Sound is live" : "Tap once to start sound"}
+                {audioPhase === "running" ? "Sound is live" : "Click Hear a C"}
               </p>
             </div>
           </div>
           <Button
             size="sm"
-            variant={isMuted ? "neutral" : "default"}
             onClick={() => {
+              soundEngine.setMuted(false);
               soundEngine.unlock();
-              const next = !isMuted;
-              setIsMuted(next);
-              soundEngine.setMuted(next);
+              soundEngine.playMidi(60, 0.5);
             }}
           >
-            {isMuted ? (
-              <>
-                <VolumeX className="size-4" /> Sound off
-              </>
-            ) : (
-              <>
-                <Volume2 className="size-4" /> Sound on
-              </>
-            )}
+            <Volume2 className="size-4" /> Hear a C
           </Button>
         </div>
       </header>
