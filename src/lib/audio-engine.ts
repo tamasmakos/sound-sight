@@ -24,6 +24,8 @@ class SoundEngine {
   private bound = false;
   private listeners = new Set<() => void>();
   private toneUrls = new Map<string, string>();
+  private media: HTMLAudioElement | null = null;
+  private kicked = false;
 
   public onChange(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -50,6 +52,7 @@ class SoundEngine {
     document.addEventListener("click", unlock, true);
     document.addEventListener("keydown", unlock, true);
     document.addEventListener("touchend", unlock, true);
+    document.addEventListener("pointerup", unlock, true);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) return;
       this.recover();
@@ -87,7 +90,11 @@ class SoundEngine {
     try {
       this.ctx = new AudioCtx({ latencyHint: "interactive" });
     } catch {
-      return null;
+      try {
+        this.ctx = new AudioCtx();
+      } catch {
+        return null;
+      }
     }
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = this.muted ? 0 : this.volume;
@@ -97,16 +104,22 @@ class SoundEngine {
     return this.ctx;
   }
 
-  /** A one-sample buffer started in the gesture is what older iOS needs. */
+  /**
+   * iOS drops a one-sample buffer. A short silent buffer, started in the
+   * same turn as the gesture, is enough to open the hardware.
+   */
   private kick(ctx: AudioContext) {
+    if (this.kicked) return;
+    this.kicked = true;
     try {
-      const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const length = Math.max(1, Math.floor(ctx.sampleRate * 0.12));
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.connect(ctx.destination);
       src.start(0);
     } catch {
-      // The note itself is the next attempt.
+      this.kicked = false;
     }
   }
 
@@ -163,16 +176,8 @@ class SoundEngine {
       return;
     }
     if (ctx.state !== "running") void ctx.resume();
-    if (ctx.state === "running") {
-      this.soundNote(ctx, midi, duration, delay, customWave);
-      return;
-    }
-    const heard = delay === 0 && this.playElement(midi, duration);
-    void ctx.resume().then(() => {
-      this.emit();
-      if (heard || this.muted || !this.ctx || this.ctx.state !== "running" || !this.masterGain) return;
-      this.soundNote(this.ctx, midi, duration, delay, customWave);
-    });
+    // Start the note in this turn. Waiting for resume() drops the gesture on iOS.
+    this.soundNote(ctx, midi, duration, delay, customWave);
   }
 
   private soundNote(
@@ -186,13 +191,23 @@ class SoundEngine {
     scheduleTone(ctx, this.masterGain, midiToFreq(midi), duration, delay, customWave ?? this.waveform);
   }
 
-  /** Used when the context is still suspended, so this click can still be heard. */
+  /**
+   * Used when Web Audio cannot be constructed. One element, a data-URI wav.
+   * Blob URLs stay silent on iOS.
+   */
   private playElement(midi: number, duration: number): boolean {
-    if (typeof Audio === "undefined") return false;
+    if (typeof document === "undefined") return false;
     try {
-      const audio = new Audio(this.toneUrl(midi, Math.min(Math.max(duration, 0.2), 1.2)));
-      audio.volume = 0.9;
-      void audio.play().catch(() => this.emit());
+      if (!this.media) {
+        const audio = document.createElement("audio");
+        audio.setAttribute("playsinline", "");
+        audio.preload = "auto";
+        document.body.appendChild(audio);
+        this.media = audio;
+      }
+      this.media.src = this.toneUrl(midi, Math.min(Math.max(duration, 0.2), 1.2));
+      this.media.volume = 0.9;
+      void this.media.play().catch(() => this.emit());
       return true;
     } catch {
       return false;
@@ -214,7 +229,7 @@ class SoundEngine {
       const sample = Math.sin(2 * Math.PI * freq * t) * attack * release;
       samples[i] = Math.max(-1, Math.min(1, sample * 0.8)) * 0x7fff;
     }
-    const url = URL.createObjectURL(new Blob([encodeWav(samples, sampleRate)], { type: "audio/wav" }));
+    const url = wavDataUrl(encodeWav(samples, sampleRate));
     this.toneUrls.set(key, url);
     return url;
   }
@@ -291,6 +306,16 @@ export async function renderedTonePeak(): Promise<number> {
   let peak = 0;
   for (let i = 0; i < data.length; i += 1) peak = Math.max(peak, Math.abs(data[i]));
   return peak;
+}
+
+function wavDataUrl(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x1000;
+  for (let index = 0; index < bytes.length; index += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+  }
+  return `data:audio/wav;base64,${btoa(binary)}`;
 }
 
 function encodeWav(samples: Int16Array, sampleRate: number): ArrayBuffer {

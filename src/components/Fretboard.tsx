@@ -3,14 +3,17 @@
 import { CHROMATIC_NOTES, ScaleDefinition, stepLabel } from "@/lib/music-theory";
 import type { LabelMode } from "@/lib/curriculum";
 import { soundEngine } from "@/lib/audio-engine";
+import { useChordGesture } from "@/lib/chord-gesture";
 
 interface FretboardProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  cursorMidi?: number;
   labelMode: LabelMode;
   scale: ScaleDefinition | null;
-  onTriggerMidi: (midi: number) => void;
+  onToggleMidi: (midi: number) => void;
+  onAddMidis: (midis: number[]) => void;
 }
 
 const STRINGS: { name: string; open: number }[] = [
@@ -29,36 +32,44 @@ export function Fretboard({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  cursorMidi,
   labelMode,
   scale,
-  onTriggerMidi,
+  onToggleMidi,
+  onAddMidis,
 }: FretboardProps) {
+  const gesture = useChordGesture(onToggleMidi, onAddMidis);
+
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[40rem]">
-        <div className="grid grid-cols-[2.25rem_repeat(13,minmax(0,1fr))] gap-px">
-          <div />
-          {Array.from({ length: FRETS + 1 }, (_, fret) => (
-            <div key={fret} className="pb-1 text-center text-[10px] font-mono text-foreground/55">
-              {fret}
-              {INLAYS.has(fret) && (
-                <span className="mx-auto mt-0.5 block size-1.5 rounded-full bg-black" />
-              )}
-            </div>
-          ))}
-          {STRINGS.map((string) => (
-            <StringRow
-              key={string.open}
-              string={string}
-              rootPc={rootPc}
-              highlightedPitchClasses={highlightedPitchClasses}
-              activeMidis={activeMidis}
-              labelMode={labelMode}
-              scale={scale}
-              onTriggerMidi={onTriggerMidi}
-            />
-          ))}
-        </div>
+    <div className="w-full min-w-0 select-none overflow-x-auto overscroll-x-contain">
+      <div className="grid w-max min-w-full grid-cols-[1.75rem_repeat(13,minmax(2.75rem,1fr))] gap-px">
+        <div />
+        {Array.from({ length: FRETS + 1 }, (_, fret) => (
+          <div
+            key={fret}
+            className="pb-0.5 text-center font-mono text-[9px] leading-none text-foreground/55 sm:text-[10px]"
+          >
+            {fret}
+            {INLAYS.has(fret) && (
+              <span className="mx-auto mt-0.5 block size-1 rounded-full bg-black" />
+            )}
+          </div>
+        ))}
+        {STRINGS.map((string) => (
+          <StringRow
+            key={string.open}
+            string={string}
+            rootPc={rootPc}
+            highlightedPitchClasses={highlightedPitchClasses}
+            activeMidis={activeMidis}
+            cursorMidi={cursorMidi}
+            labelMode={labelMode}
+            scale={scale}
+            onPointerDown={gesture.pointerDown}
+            onPointerUp={gesture.pointerUp}
+            onPointerCancel={gesture.pointerCancel}
+          />
+        ))}
       </div>
     </div>
   );
@@ -69,51 +80,73 @@ function StringRow({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  cursorMidi,
   labelMode,
   scale,
-  onTriggerMidi,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
 }: {
   string: { name: string; open: number };
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  cursorMidi?: number;
   labelMode: LabelMode;
   scale: ScaleDefinition | null;
-  onTriggerMidi: (midi: number) => void;
+  onPointerDown: (id: number, midi: number) => void;
+  onPointerUp: (id: number, midi: number) => void;
+  onPointerCancel: (id: number) => void;
 }) {
   return (
     <>
-      <div className="flex items-center justify-center font-heading text-xs">{string.name}</div>
+      <div className="flex min-w-0 items-center justify-center font-heading text-[11px] sm:text-xs">
+        {string.name}
+      </div>
       {Array.from({ length: FRETS + 1 }, (_, fret) => {
         const midi = string.open + fret;
         const pc = midi % 12;
-        const lit = highlightedPitchClasses.includes(pc) || activeMidis.includes(midi);
+        const isActive = activeMidis.includes(midi);
+        const isHighlighted = highlightedPitchClasses.includes(pc);
         const isRoot = pc === rootPc;
+        const isCursor = cursorMidi === midi;
         const label =
           labelMode === "notes" ? CHROMATIC_NOTES[pc] : stepLabel(pc, rootPc, scale);
-        const showLabel = lit || fret === 0 || isRoot;
         return (
           <button
             key={fret}
+            type="button"
             aria-label={`${string.name} string fret ${fret}, ${CHROMATIC_NOTES[pc]}`}
-            onClick={() => {
+            aria-pressed={isActive}
+            onPointerDown={(event) => {
+              try {
+                event.currentTarget.setPointerCapture(event.pointerId);
+              } catch {
+                // A click without an active pointer still plays the note.
+              }
               soundEngine.unlock();
-              onTriggerMidi(midi);
+              onPointerDown(event.pointerId, midi);
             }}
-            className={`relative h-9 border-y border-black/70 cursor-pointer ${
-              fret === 0 ? "border-r-4 border-r-black bg-neutral-100" : "border-r border-r-black/40 bg-[#f4e2b0]"
-            }`}
+            onPointerUp={(event) => onPointerUp(event.pointerId, midi)}
+            onPointerCancel={(event) => onPointerCancel(event.pointerId)}
+            style={{
+              backgroundColor: isActive
+                ? "var(--main)"
+                : isHighlighted
+                  ? "color-mix(in srgb, var(--main) 55%, white)"
+                  : fret === 0
+                    ? "#f4f4f4"
+                    : "#fffdf6",
+            }}
+            className={`relative flex h-12 min-w-0 items-center justify-center overflow-hidden border-y border-black/70 touch-manipulation cursor-pointer sm:h-11 ${
+              fret === 0 ? "border-r-[3px] border-r-black" : "border-r border-r-black/35"
+            } ${isCursor ? "ring-2 ring-inset ring-black" : ""}`}
           >
-            <span className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-black/80" />
-            {showLabel && (
-              <span
-                className={`relative z-10 inline-flex min-w-5 items-center justify-center rounded-full border border-black px-1 text-[10px] font-heading leading-none ${
-                  lit ? "bg-main text-black" : "bg-white/90 text-black"
-                } ${isRoot ? "ring-2 ring-black" : ""}`}
-              >
-                {label}
-              </span>
-            )}
+            <span className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-black/70" />
+            {isRoot && <span className="absolute inset-x-0 top-0 h-1 bg-black" />}
+            <span className="relative z-10 font-heading text-xs leading-none text-black">
+              {label}
+            </span>
           </button>
         );
       })}

@@ -57,6 +57,31 @@ export function midiFromPosition(position: number, clef: "treble" | "bass"): num
   return (octave + 1) * 12 + LETTER_PC[letter];
 }
 
+/** Move by staff letters. Sharps and flats step to the next letter, not the next key. */
+export function shiftDiatonic(midi: number, delta: number): number {
+  const spelled = spellMidi(midi);
+  const diatonic = diatonicFromSpelling(spelled.letter, spelled.octave) + delta;
+  const octave = Math.floor(diatonic / 7);
+  const letter = ((diatonic % 7) + 7) % 7;
+  const next = (octave + 1) * 12 + LETTER_PC[letter];
+  return Math.max(48, Math.min(84, next));
+}
+
+/** Prefer the signature with the fewest accidentals for this pitch class. */
+export function fifthsForTonic(pc: number): number {
+  let best = 0;
+  let bestAbs = 99;
+  for (const key of MAJOR_KEYS) {
+    if (key.tonicPc !== ((pc % 12) + 12) % 12) continue;
+    const abs = Math.abs(key.fifths);
+    if (abs < bestAbs) {
+      best = key.fifths;
+      bestAbs = abs;
+    }
+  }
+  return best;
+}
+
 export const MAJOR_KEYS: { fifths: number; major: string; minor: string; tonicPc: number }[] = [
   { fifths: -7, major: "C♭", minor: "A♭", tonicPc: 11 },
   { fifths: -6, major: "G♭", minor: "E♭", tonicPc: 6 },

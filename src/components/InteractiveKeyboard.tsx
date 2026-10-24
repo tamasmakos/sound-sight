@@ -10,15 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Volume2 } from "lucide-react";
 import type { LabelMode } from "@/lib/curriculum";
 import { soundEngine } from "@/lib/audio-engine";
+import { useChordGesture } from "@/lib/chord-gesture";
+import { spellMidi } from "@/lib/notation";
 
 interface InteractiveKeyboardProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  cursorMidi?: number;
   labelMode: LabelMode;
   onLabelModeChange: (mode: LabelMode) => void;
   scale: ScaleDefinition | null;
-  onTriggerMidi: (midi: number) => void;
+  onToggleMidi: (midi: number) => void;
+  onAddMidis: (midis: number[]) => void;
   onSelectRoot: (pc: number) => void;
   onHearShape?: () => void;
   bare?: boolean;
@@ -57,29 +61,47 @@ export function InteractiveKeyboard({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  cursorMidi,
   labelMode,
   onLabelModeChange,
   scale,
-  onTriggerMidi,
+  onToggleMidi,
+  onAddMidis,
   onSelectRoot,
   onHearShape,
   bare = false,
 }: InteractiveKeyboardProps) {
+  const gesture = useChordGesture(onToggleMidi, onAddMidis);
+
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.repeat ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
         event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement
       ) {
         return;
       }
       const midi = KEY_BINDINGS[event.key.toLowerCase()];
-      if (midi !== undefined) onTriggerMidi(midi);
+      if (midi === undefined) return;
+      soundEngine.unlock();
+      gesture.keyDown(event.key.toLowerCase(), midi);
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const midi = KEY_BINDINGS[event.key.toLowerCase()];
+      if (midi === undefined) return;
+      gesture.keyUp(event.key.toLowerCase(), midi);
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onTriggerMidi]);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [gesture]);
 
   const octaves = [4, 5];
   const whiteKeys: { midi: number; pc: number }[] = [];
@@ -109,14 +131,15 @@ export function InteractiveKeyboard({
       ? CHROMATIC_NOTES[pc]
       : stepLabel(pc, rootPc, scale);
 
-  const dimLabel = (pc: number) =>
-    labelMode === "steps" &&
-    highlightedPitchClasses.length > 0 &&
-    !highlightedPitchClasses.includes(pc);
-
-  const playKey = (midi: number) => {
+  const pressKey = (event: React.PointerEvent<HTMLButtonElement>, midi: number) => {
+    event.stopPropagation();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A click without an active pointer still plays the note.
+    }
     soundEngine.unlock();
-    onTriggerMidi(midi);
+    gesture.pointerDown(event.pointerId, midi);
   };
 
   return (
@@ -135,7 +158,7 @@ export function InteractiveKeyboard({
                   key={note}
                   onClick={() => {
                     onSelectRoot(pc);
-                    onTriggerMidi(60 + pc);
+                    onAddMidis([60 + pc]);
                   }}
                   className={`h-8 min-w-8 rounded-base border-2 border-border px-1.5 text-xs font-heading cursor-pointer shrink-0 ${
                     isRoot ? "bg-main" : "bg-white hover:bg-background"
@@ -183,14 +206,19 @@ export function InteractiveKeyboard({
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
             const isActive = activeMidis.includes(key.midi);
             const isRoot = key.pc === rootPc;
+            const isCursor = cursorMidi === key.midi;
             return (
               <button
                 key={key.midi}
-                aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
-                onClick={() => playKey(key.midi)}
-                className={`relative flex h-full flex-1 flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
+                type="button"
+                aria-pressed={isActive}
+                aria-label={`${spellMidi(key.midi).name}, step ${stepLabel(key.pc, rootPc, scale)}`}
+                onPointerDown={(event) => pressKey(event, key.midi)}
+                onPointerUp={(event) => gesture.pointerUp(event.pointerId, key.midi)}
+                onPointerCancel={(event) => gesture.pointerCancel(event.pointerId)}
+                className={`relative flex h-full flex-1 touch-manipulation flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
                   isActive ? "translate-y-0.5" : ""
-                }`}
+                } ${isCursor ? "ring-2 ring-inset ring-black" : ""}`}
                 style={{
                   backgroundColor: isActive
                     ? "var(--main)"
@@ -202,11 +230,7 @@ export function InteractiveKeyboard({
                 {isRoot && (
                   <span className="absolute inset-x-0 top-0 h-1.5 bg-black" />
                 )}
-                <span
-                  className={`font-heading text-xs sm:text-sm text-black ${
-                    dimLabel(key.pc) ? "opacity-35" : ""
-                  }`}
-                >
+                <span className="font-heading text-xs text-black sm:text-sm">
                   {labelFor(key.pc)}
                 </span>
               </button>
@@ -217,32 +241,36 @@ export function InteractiveKeyboard({
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
             const isActive = activeMidis.includes(key.midi);
             const isRoot = key.pc === rootPc;
+            const isCursor = cursorMidi === key.midi;
             const lit = isHighlighted || isActive;
             return (
               <button
                 key={key.midi}
-                aria-label={`${CHROMATIC_NOTES[key.pc]}, step ${stepLabel(key.pc, rootPc, scale)}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  playKey(key.midi);
-                }}
+                type="button"
+                aria-pressed={isActive}
+                aria-label={`${spellMidi(key.midi).name}, step ${stepLabel(key.pc, rootPc, scale)}`}
+                onPointerDown={(event) => pressKey(event, key.midi)}
+                onPointerUp={(event) => gesture.pointerUp(event.pointerId, key.midi)}
+                onPointerCancel={(event) => gesture.pointerCancel(event.pointerId)}
                 style={{
                   left: `${key.leftPercent}%`,
-                  width: "4.6%",
-                  backgroundColor: lit ? "var(--main)" : "#161616",
+                  width: "3.5%",
+                  backgroundColor: isActive
+                    ? "var(--main)"
+                    : isHighlighted
+                      ? "color-mix(in srgb, var(--main) 72%, #161616)"
+                      : "#161616",
                 }}
-                className={`absolute top-0 z-10 flex h-[62%] flex-col items-center justify-end rounded-b-base border-2 border-black pb-1.5 cursor-pointer ${
+                className={`absolute top-0 z-10 flex h-[46%] touch-manipulation flex-col items-center justify-end rounded-b-base border-2 border-black pb-1 cursor-pointer ${
                   isActive ? "translate-y-0.5" : ""
-                } ${lit ? "text-black" : "text-white"}`}
+                } ${lit ? "text-black" : "text-white"} ${
+                  isCursor ? "ring-2 ring-inset ring-main" : ""
+                }`}
               >
                 {isRoot && (
                   <span className="absolute inset-x-0 top-0 h-1 bg-black" />
                 )}
-                <span
-                  className={`font-heading text-[10px] leading-none sm:text-[11px] ${
-                    dimLabel(key.pc) ? "opacity-40" : ""
-                  }`}
-                >
+                <span className="font-heading text-[10px] leading-none sm:text-[11px]">
                   {labelFor(key.pc)}
                 </span>
               </button>
@@ -256,7 +284,7 @@ export function InteractiveKeyboard({
         {labelMode === "steps"
           ? `Steps count from ${CHROMATIC_NOTES[rootPc]}. 1 is home. The black bar marks home on the keys.`
           : "Letter names. The same letter returns one octave higher."}{" "}
-        Letter keys A through L play along.
+        Letter keys A through L play along. Hold more than one for a chord.
       </p>
       )}
     </section>

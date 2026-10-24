@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { soundEngine } from "@/lib/audio-engine";
 import {
   Card,
   CardHeader,
@@ -53,7 +52,13 @@ const POLYRHYTHM_PRESETS: PolyrhythmPreset[] = [
   },
 ];
 
-export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean }) {
+export function PolyrhythmOrbitLab({
+  embedded = false,
+  onPlayNotes,
+}: {
+  embedded?: boolean;
+  onPlayNotes?: (midis: number[], arpeggiate?: boolean) => void;
+}) {
   const [ringA, setRingA] = React.useState(3);
   const [ringB, setRingB] = React.useState(2);
   const [bpm, setBpm] = React.useState(96);
@@ -62,6 +67,15 @@ export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean })
 
   const lastTrigARef = React.useRef<number>(-1);
   const lastTrigBRef = React.useRef<number>(-1);
+  const playRef = React.useRef(onPlayNotes);
+  React.useEffect(() => {
+    playRef.current = onPlayNotes;
+  });
+
+  const pulse = (kind: "accent" | "ringA" | "ringB") => {
+    const midi = kind === "accent" ? 60 : kind === "ringA" ? 67 : 64;
+    playRef.current?.([midi]);
+  };
 
   React.useEffect(() => {
     if (!isPlaying) {
@@ -86,20 +100,19 @@ export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean })
         const stepA = Math.floor(next * ringA);
         const stepB = Math.floor(next * ringB);
 
+        const hit: number[] = [];
         if (stepA !== lastTrigARef.current) {
           lastTrigARef.current = stepA;
-          if (stepA === 0) {
-            soundEngine.playPercussion("accent");
-          } else {
-            soundEngine.playPercussion("ringA");
-          }
+          hit.push(stepA === 0 ? 60 : 67);
         }
 
         if (stepB !== lastTrigBRef.current) {
           lastTrigBRef.current = stepB;
-          if (stepB !== 0) {
-            soundEngine.playPercussion("ringB");
-          }
+          if (stepB !== 0) hit.push(64);
+        }
+        if (hit.length > 0) {
+          const notes = hit;
+          queueMicrotask(() => playRef.current?.(notes));
         }
 
         return next;
@@ -249,9 +262,7 @@ export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean })
                   <g
                     key={`a-${i}`}
                     className="cursor-pointer"
-                    onClick={() =>
-                      soundEngine.playPercussion(i === 0 ? "accent" : "ringA")
-                    }
+                    onClick={() => pulse(i === 0 ? "accent" : "ringA")}
                   >
                     <circle
                       cx={pt.x}
@@ -284,9 +295,7 @@ export function PolyrhythmOrbitLab({ embedded = false }: { embedded?: boolean })
                   <g
                     key={`b-${i}`}
                     className="cursor-pointer"
-                    onClick={() =>
-                      soundEngine.playPercussion(i === 0 ? "accent" : "ringB")
-                    }
+                    onClick={() => pulse(i === 0 ? "accent" : "ringB")}
                   >
                     <circle
                       cx={pt.x}
