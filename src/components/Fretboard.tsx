@@ -9,6 +9,7 @@ interface FretboardProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  soundColors?: Record<number, string>;
   cursorMidi?: number;
   labelMode: LabelMode;
   scale: ScaleDefinition | null;
@@ -32,6 +33,7 @@ export function Fretboard({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  soundColors,
   cursorMidi,
   labelMode,
   scale,
@@ -42,17 +44,15 @@ export function Fretboard({
 
   return (
     <div className="w-full min-w-0 select-none overflow-x-auto overscroll-x-contain">
-      <div className="grid w-max min-w-full grid-cols-[1.75rem_repeat(13,minmax(2.75rem,1fr))] gap-px">
+      <div className="grid w-max min-w-full grid-cols-[1.1rem_repeat(13,minmax(1.35rem,1fr))] gap-px">
         <div />
         {Array.from({ length: FRETS + 1 }, (_, fret) => (
           <div
             key={fret}
-            className="pb-0.5 text-center font-mono text-[9px] leading-none text-foreground/55 sm:text-[10px]"
+            className="flex items-center justify-center gap-0.5 pb-px text-center font-mono text-[9px] leading-none text-foreground/55"
           >
             {fret}
-            {INLAYS.has(fret) && (
-              <span className="mx-auto mt-0.5 block size-1 rounded-full bg-black" />
-            )}
+            {INLAYS.has(fret) && <span className="size-1 shrink-0 rounded-full bg-black" />}
           </div>
         ))}
         {STRINGS.map((string) => (
@@ -62,6 +62,7 @@ export function Fretboard({
             rootPc={rootPc}
             highlightedPitchClasses={highlightedPitchClasses}
             activeMidis={activeMidis}
+            soundColors={soundColors}
             cursorMidi={cursorMidi}
             labelMode={labelMode}
             scale={scale}
@@ -80,6 +81,7 @@ function StringRow({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  soundColors,
   cursorMidi,
   labelMode,
   scale,
@@ -91,6 +93,7 @@ function StringRow({
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  soundColors?: Record<number, string>;
   cursorMidi?: number;
   labelMode: LabelMode;
   scale: ScaleDefinition | null;
@@ -100,7 +103,7 @@ function StringRow({
 }) {
   return (
     <>
-      <div className="flex min-w-0 items-center justify-center font-heading text-[11px] sm:text-xs">
+      <div className="flex min-w-0 items-center justify-center font-heading text-[10px] leading-none">
         {string.name}
       </div>
       {Array.from({ length: FRETS + 1 }, (_, fret) => {
@@ -131,20 +134,20 @@ function StringRow({
             onPointerCancel={(event) => onPointerCancel(event.pointerId)}
             style={{
               backgroundColor: isActive
-                ? "var(--main)"
+                ? (soundColors?.[midi] ?? "var(--main)")
                 : isHighlighted
                   ? "color-mix(in srgb, var(--main) 55%, white)"
                   : fret === 0
                     ? "#f4f4f4"
                     : "#fffdf6",
             }}
-            className={`relative flex h-12 min-w-0 items-center justify-center overflow-hidden border-y border-black/70 touch-manipulation cursor-pointer sm:h-11 ${
+            className={`relative flex h-5 min-w-0 items-center justify-center overflow-hidden border-y border-black/70 touch-manipulation cursor-pointer ${
               fret === 0 ? "border-r-[3px] border-r-black" : "border-r border-r-black/35"
             } ${isCursor ? "ring-2 ring-inset ring-black" : ""}`}
           >
             <span className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-black/70" />
-            {isRoot && <span className="absolute inset-x-0 top-0 h-1 bg-black" />}
-            <span className="relative z-10 font-heading text-xs leading-none text-black">
+            {isRoot && <span className="absolute inset-x-0 top-0 h-0.5 bg-black" />}
+            <span className="relative z-10 font-heading text-[9px] leading-none text-black">
               {label}
             </span>
           </button>

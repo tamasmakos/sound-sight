@@ -125,6 +125,7 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
               rootPc={rootPc}
               highlightedPitchClasses={task.guidePitchClasses ?? []}
               activeMidis={performance.activeMidis}
+              soundColors={performance.soundColors}
               cursorMidi={performance.cursorMidi}
               labelMode={labelMode}
               onLabelModeChange={setLabelMode}
@@ -133,7 +134,9 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
               onAddMidis={performance.addMidis}
               onSelectRoot={chooseRoot}
               onStepCursor={performance.stepCursor}
+              onMoveSelection={performance.moveSelection}
               onAddCursor={performance.addCursor}
+              onRemoveCursor={performance.removeCursor}
               onClear={() => {
                 performance.clearChord();
                 performance.resetTaps();

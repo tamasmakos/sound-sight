@@ -17,6 +17,7 @@ interface InteractiveKeyboardProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  soundColors?: Record<number, string>;
   cursorMidi?: number;
   labelMode: LabelMode;
   onLabelModeChange: (mode: LabelMode) => void;
@@ -61,6 +62,7 @@ export function InteractiveKeyboard({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  soundColors,
   cursorMidi,
   labelMode,
   onLabelModeChange,
@@ -221,7 +223,7 @@ export function InteractiveKeyboard({
                 } ${isCursor ? "ring-2 ring-inset ring-black" : ""}`}
                 style={{
                   backgroundColor: isActive
-                    ? "var(--main)"
+                    ? (soundColors?.[key.midi] ?? "var(--main)")
                     : isHighlighted
                       ? "color-mix(in srgb, var(--main) 55%, white)"
                       : "#ffffff",
@@ -256,7 +258,7 @@ export function InteractiveKeyboard({
                   left: `${key.leftPercent}%`,
                   width: "3.5%",
                   backgroundColor: isActive
-                    ? "var(--main)"
+                    ? (soundColors?.[key.midi] ?? "var(--main)")
                     : isHighlighted
                       ? "color-mix(in srgb, var(--main) 72%, #161616)"
                       : "#161616",

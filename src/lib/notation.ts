@@ -14,19 +14,24 @@ export interface SpelledNote {
 const FLAT_SPELL: Record<number, { letter: number; accidental: number }> = {
   1: { letter: 1, accidental: -1 },
   3: { letter: 2, accidental: -1 },
-  6: { letter: 3, accidental: -1 },
-  8: { letter: 4, accidental: -1 },
+  6: { letter: 4, accidental: -1 },
+  8: { letter: 5, accidental: -1 },
   10: { letter: 6, accidental: -1 },
 };
 
-export function spellMidi(midi: number, fifths = 0): SpelledNote {
-  const pc = ((midi % 12) + 12) % 12;
-  const preferFlat = fifths < 0;
-  const flat = FLAT_SPELL[pc];
-  const letter = preferFlat && flat ? flat.letter : [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][pc];
-  const accidental =
-    preferFlat && flat ? flat.accidental : [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0][pc];
-  const octave = Math.floor(midi / 12) - 1;
+/** F C G D A E B, then B E A D G C F. Index is a letter number. */
+const SHARP_LETTERS = [3, 0, 4, 1, 5, 2, 6];
+const FLAT_LETTERS = [6, 2, 5, 1, 4, 0, 3];
+
+function keyAccidental(letter: number, fifths: number): number {
+  if (fifths > 0 && SHARP_LETTERS.indexOf(letter) < fifths) return 1;
+  if (fifths < 0 && FLAT_LETTERS.indexOf(letter) < -fifths) return -1;
+  return 0;
+}
+
+function spelledNote(midi: number, letter: number, accidental: number): SpelledNote {
+  const naturalMidi = midi - accidental;
+  const octave = Math.floor(naturalMidi / 12) - 1;
   const acc = accidental === 1 ? "♯" : accidental === -1 ? "♭" : "";
   return {
     midi,
@@ -35,6 +40,22 @@ export function spellMidi(midi: number, fifths = 0): SpelledNote {
     accidental,
     name: `${LETTERS[letter]}${acc}${octave}`,
   };
+}
+
+export function spellMidi(midi: number, fifths = 0): SpelledNote {
+  const pc = ((midi % 12) + 12) % 12;
+  const clamped = Math.max(-7, Math.min(7, Math.trunc(fifths)));
+  for (let letter = 0; letter < 7; letter += 1) {
+    const accidental = keyAccidental(letter, clamped);
+    if ((LETTER_PC[letter] + accidental + 12) % 12 === pc) {
+      return spelledNote(midi, letter, accidental);
+    }
+  }
+  const preferFlat = clamped < 0;
+  const flat = FLAT_SPELL[pc];
+  const letter = preferFlat && flat ? flat.letter : [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][pc];
+  const accidental = preferFlat && flat ? flat.accidental : [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0][pc];
+  return spelledNote(midi, letter, accidental);
 }
 
 export function diatonicFromSpelling(letter: number, octave: number): number {
@@ -57,29 +78,26 @@ export function midiFromPosition(position: number, clef: "treble" | "bass"): num
   return (octave + 1) * 12 + LETTER_PC[letter];
 }
 
-/** Move by staff letters. Sharps and flats step to the next letter, not the next key. */
-export function shiftDiatonic(midi: number, delta: number): number {
-  const spelled = spellMidi(midi);
+/** Move one staff step. The landing letter keeps the signature's accidental. */
+export function shiftDiatonic(midi: number, delta: number, fifths = 0): number {
+  const clamped = Math.max(-7, Math.min(7, Math.trunc(fifths)));
+  const spelled = spellMidi(midi, clamped);
   const diatonic = diatonicFromSpelling(spelled.letter, spelled.octave) + delta;
   const octave = Math.floor(diatonic / 7);
   const letter = ((diatonic % 7) + 7) % 7;
-  const next = (octave + 1) * 12 + LETTER_PC[letter];
+  const next = (octave + 1) * 12 + LETTER_PC[letter] + keyAccidental(letter, clamped);
   return Math.max(48, Math.min(84, next));
 }
 
-/** Prefer the signature with the fewest accidentals for this pitch class. */
+/** Signature for this pitch class. A sharp key wins when both spellings exist, so C♯ stays C♯. */
 export function fifthsForTonic(pc: number): number {
-  let best = 0;
-  let bestAbs = 99;
-  for (const key of MAJOR_KEYS) {
-    if (key.tonicPc !== ((pc % 12) + 12) % 12) continue;
-    const abs = Math.abs(key.fifths);
-    if (abs < bestAbs) {
-      best = key.fifths;
-      bestAbs = abs;
-    }
-  }
-  return best;
+  const normalized = ((pc % 12) + 12) % 12;
+  const matches = MAJOR_KEYS.filter((key) => key.tonicPc === normalized);
+  const sharp = matches
+    .filter((key) => key.fifths >= 0)
+    .sort((a, b) => Math.abs(a.fifths) - Math.abs(b.fifths))[0];
+  if (sharp) return sharp.fifths;
+  return matches.sort((a, b) => Math.abs(a.fifths) - Math.abs(b.fifths))[0]?.fifths ?? 0;
 }
 
 export const MAJOR_KEYS: { fifths: number; major: string; minor: string; tonicPc: number }[] = [
@@ -117,4 +135,11 @@ export function signaturePositions(fifths: number, clef: "treble" | "bass"): num
 
 export function keyByFifths(fifths: number) {
   return MAJOR_KEYS.find((key) => key.fifths === fifths) ?? MAJOR_KEYS[7];
+}
+
+/** VexFlow key name for a signature. Sharp keys win a tie, so F♯ stays F♯. */
+export function vexKeySpec(fifths: number): string {
+  const clamped = Math.max(-7, Math.min(7, fifths));
+  const names = ["Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#"];
+  return names[clamped + 7];
 }
