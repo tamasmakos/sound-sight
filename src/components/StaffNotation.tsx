@@ -1,9 +1,7 @@
 "use client";
 
-import type { MouseEvent } from "react";
-import { BASS, FLAT, SHARP, TREBLE, type MusicGlyph } from "@/lib/music-glyphs";
-import { midiFromPosition, spellMidi, staffPosition } from "@/lib/notation";
-import { STEP, layoutStaff, ledgerPositions } from "@/lib/staff-geometry";
+import React from "react";
+import { midiFromPosition, spellMidi, staffPosition, vexKeySpec } from "@/lib/notation";
 
 interface StaffNote {
   midi: number;
@@ -14,201 +12,278 @@ interface StaffNote {
 interface StaffNotationProps {
   clef?: "treble" | "bass" | "grand";
   notes?: StaffNote[];
-  /** Played notes. Matching noteheads turn yellow. */
+  /** Sounding pitches. Notes without their own color use this, then yellow. */
   litMidis?: number[];
-  /** Hollow notehead for the pitch the arrows are aiming at. */
+  /** Color of each sounding pitch, shared with the instrument. */
+  soundColors?: Record<number, string>;
+  /** The note the arrows are editing. It is drawn hollow until it is on the staff. */
   cursorMidi?: number;
   fifths?: number;
   interactive?: boolean;
   onPickMidi?: (midi: number) => void;
 }
 
-function withCursor(notes: StaffNote[], cursorMidi?: number, litMidis?: number[]): StaffNote[] {
+interface DrawnNote {
+  midi: number;
+  color: string;
+  open: boolean;
+  selected: boolean;
+}
+
+interface StaveMetric {
+  clef: "treble" | "bass";
+  top: number;
+  space: number;
+}
+
+function withCursor(
+  notes: StaffNote[],
+  cursorMidi: number | undefined,
+  litMidis: number[] | undefined,
+  soundColors: Record<number, string> | undefined
+): DrawnNote[] {
   const lit = new Set(litMidis ?? []);
-  const painted = notes.map((note) =>
-    lit.has(note.midi) ? { ...note, color: "#FACC00", open: false } : note
-  );
-  if (cursorMidi === undefined || painted.some((note) => note.midi === cursorMidi)) return painted;
-  return [...painted, { midi: cursorMidi, open: true }];
+  const drawn: DrawnNote[] = notes.map((note) => ({
+    midi: note.midi,
+    open: false,
+    selected: cursorMidi === note.midi,
+    color:
+      soundColors?.[note.midi] ??
+      note.color ??
+      (lit.has(note.midi) ? "#FACC00" : "#111111"),
+  }));
+  if (cursorMidi !== undefined && !drawn.some((note) => note.midi === cursorMidi)) {
+    drawn.push({
+      midi: cursorMidi,
+      color: "#ffffff",
+      open: true,
+      selected: true,
+    });
+  }
+  return drawn.sort((a, b) => a.midi - b.midi);
+}
+
+function vexPitch(midi: number, fifths: number): string {
+  const spelled = spellMidi(midi, fifths);
+  const letter = "cdefgab"[spelled.letter];
+  const accidental =
+    spelled.accidental === 1 ? "#" : spelled.accidental === -1 ? "b" : "";
+  return `${letter}${accidental}/${spelled.octave}`;
+}
+
+function staffPadding(clef: "treble" | "bass", notes: DrawnNote[], fifths: number) {
+  const positions = notes.map((note) => staffPosition(note.midi, clef, fifths));
+  const highest = Math.max(8, ...positions);
+  const lowest = Math.min(0, ...positions);
+  return {
+    above: Math.max(18, (highest - 8) * 6 + 16),
+    below: Math.max(28, -lowest * 6 + 22),
+  };
 }
 
 export function StaffNotation({
   clef = "treble",
   notes = [],
   litMidis,
+  soundColors,
   cursorMidi,
   fifths = 0,
   interactive = false,
   onPickMidi,
 }: StaffNotationProps) {
-  const drawn = withCursor(notes, cursorMidi, litMidis);
-  if (clef === "grand") {
-    return (
-      <div className="overflow-hidden rounded-base border-2 border-border bg-white p-2">
-        <div className="grid gap-1">
-          <StaffBed
-            clef="treble"
-            notes={drawn.filter((note) => note.midi >= 60)}
-            fifths={fifths}
-            interactive={interactive}
-            onPickMidi={onPickMidi}
-          />
-          <div className="flex items-center gap-2 px-2 text-[11px] font-heading uppercase tracking-wide text-foreground/60">
-            <span className="h-px flex-1 bg-black/30" />
-            Middle C sits between the staves
-            <span className="h-px flex-1 bg-black/30" />
-          </div>
-          <StaffBed
-            clef="bass"
-            notes={drawn.filter((note) => note.midi < 60)}
-            fifths={fifths}
-            interactive={interactive}
-            onPickMidi={onPickMidi}
-          />
-        </div>
-      </div>
-    );
-  }
+  const hostRef = React.useRef<HTMLDivElement>(null);
+  const metricsRef = React.useRef<StaveMetric[]>([]);
+  const drawn = withCursor(notes, cursorMidi, litMidis, soundColors);
+  const drawnRef = React.useRef(drawn);
+  const drawnKey = drawn.map((note) => `${note.midi}:${note.color}:${note.open}:${note.selected}`).join("|");
 
-  return (
-    <div className="overflow-hidden rounded-base border-2 border-border bg-white p-2">
-      <StaffBed
-        clef={clef}
-        notes={drawn}
-        fifths={fifths}
-        interactive={interactive}
-        onPickMidi={onPickMidi}
-      />
-    </div>
-  );
-}
+  React.useEffect(() => {
+    drawnRef.current = drawn;
+  });
 
-function StaffBed({
-  clef,
-  notes,
-  fifths,
-  interactive,
-  onPickMidi,
-}: {
-  clef: "treble" | "bass";
-  notes: StaffNote[];
-  fifths: number;
-  interactive: boolean;
-  onPickMidi?: (midi: number) => void;
-}) {
-  const spelled = notes.map((note) => ({
-    ...note,
-    position: staffPosition(note.midi, clef, fifths),
-    accidental: spellMidi(note.midi, fifths).accidental,
-  }));
-  const layout = layoutStaff(
-    clef,
-    fifths,
-    spelled.map((note) => ({ position: note.position, accidental: note.accidental }))
-  );
+  React.useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    let cancelled = false;
 
-  const pickFromEvent = (event: MouseEvent<SVGSVGElement>) => {
+    const paint = async () => {
+      const vf = await import("vexflow");
+      await vf.VexFlow.loadFonts("Bravura", "Academico");
+      if (cancelled || !hostRef.current) return;
+      const metrics = drawScore(vf, hostRef.current, {
+        clef,
+        fifths,
+        notes: drawnRef.current,
+      });
+      metricsRef.current = metrics;
+    };
+
+    paint().catch(() => {
+      metricsRef.current = [];
+    });
+
+    const observer = new ResizeObserver(() => {
+      paint().catch(() => {
+        metricsRef.current = [];
+      });
+    });
+    observer.observe(host);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [clef, fifths, drawnKey]);
+
+  const pick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!interactive || !onPickMidi) return;
-    const svg = event.currentTarget;
+    const svg = hostRef.current?.querySelector("svg");
+    const matrix = svg?.getScreenCTM();
+    if (!svg || !matrix) return;
     const point = svg.createSVGPoint();
     point.x = event.clientX;
     point.y = event.clientY;
-    const matrix = svg.getScreenCTM();
-    if (!matrix) return;
     const local = point.matrixTransform(matrix.inverse());
-    const position = Math.round(layout.positionAt(local.y));
-    const clamped = Math.max(-2, Math.min(9, position));
-    onPickMidi(midiFromPosition(clamped, clef));
+    const stave = nearestStave(metricsRef.current, local.y);
+    if (!stave) return;
+    const line = (local.y - stave.top) / stave.space;
+    const position = Math.round(8 - line * 2);
+    const clamped = Math.max(-6, Math.min(16, position));
+    onPickMidi(midiFromPosition(clamped, stave.clef));
   };
 
   return (
-    <svg
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
-      className={`block h-auto w-full ${interactive ? "cursor-pointer" : ""}`}
+    <div
+      ref={hostRef}
+      onClick={pick}
+      className={`min-h-24 w-full overflow-x-auto bg-white ${interactive ? "cursor-pointer" : ""}`}
       role="img"
-      aria-label={clef === "treble" ? "Treble staff" : "Bass staff"}
-      onClick={pickFromEvent}
-    >
-      {[0, 2, 4, 6, 8].map((position) => (
-        <line
-          key={position}
-          x1={8}
-          x2={layout.width - 8}
-          y1={layout.y(position)}
-          y2={layout.y(position)}
-          stroke="#000"
-          strokeWidth={1.7}
-        />
-      ))}
-
-      <EngravedGlyph
-        glyph={clef === "treble" ? TREBLE : BASS}
-        x={layout.anchorX}
-        y={layout.y(clef === "treble" ? TREBLE.staffPosition : BASS.staffPosition)}
-      />
-
-      {layout.signature.map((mark, index) => (
-        <EngravedGlyph
-          key={`${mark.position}-${index}`}
-          glyph={fifths >= 0 ? SHARP : FLAT}
-          x={mark.x}
-          y={layout.y(mark.position)}
-        />
-      ))}
-
-      {layout.notes.map((note, index) => {
-        const y = layout.y(note.position);
-        const stemUp = note.position < 4;
-        const stemX = note.x + (stemUp ? 6.2 : -6.2);
-        const stemEnd = layout.y(stemUp ? note.position + 6.5 : note.position - 6.5);
-        return (
-          <g key={`${spelled[index].midi}-${index}`}>
-            {ledgerPositions(note.position).map((line) => (
-              <line
-                key={line}
-                x1={note.x - 12}
-                x2={note.x + 12}
-                y1={layout.y(line)}
-                y2={layout.y(line)}
-                stroke="#000"
-                strokeWidth={1.7}
-              />
-            ))}
-            {note.accidentalX !== null && (
-              <EngravedGlyph
-                glyph={note.accidental > 0 ? SHARP : FLAT}
-                x={note.accidentalX}
-                y={y}
-              />
-            )}
-            <ellipse
-              cx={note.x}
-              cy={y}
-              rx={7.2}
-              ry={5.2}
-              transform={`rotate(-18 ${note.x} ${y})`}
-              fill={spelled[index].open ? "#fff" : (spelled[index].color ?? "#111")}
-              stroke="#000"
-              strokeWidth={spelled[index].open ? 2 : 1.5}
-            />
-            {!spelled[index].open && (
-              <line x1={stemX} x2={stemX} y1={y} y2={stemEnd} stroke="#000" strokeWidth={1.6} />
-            )}
-          </g>
-        );
-      })}
-
-      {interactive && <rect x={0} y={0} width={layout.width} height={layout.height} fill="transparent" />}
-    </svg>
+      aria-label={clef === "grand" ? "Grand staff" : clef === "bass" ? "Bass staff" : "Treble staff"}
+    />
   );
 }
 
-const GLYPH_SCALE = (2 * STEP) / 250;
+function nearestStave(staves: StaveMetric[], y: number): StaveMetric | null {
+  if (staves.length === 0) return null;
+  return staves.reduce((best, stave) => {
+    const bestDistance = Math.abs(y - (best.top + best.space * 2));
+    const distance = Math.abs(y - (stave.top + stave.space * 2));
+    return distance < bestDistance ? stave : best;
+  });
+}
 
-function EngravedGlyph({ glyph, x, y }: { glyph: MusicGlyph; x: number; y: number }) {
-  return (
-    <g transform={`translate(${x} ${y}) scale(${GLYPH_SCALE} ${-GLYPH_SCALE}) translate(0 ${-glyph.anchorFontY})`}>
-      <path d={glyph.d} fill="#000" />
-    </g>
-  );
+function drawScore(
+  vf: typeof import("vexflow"),
+  host: HTMLDivElement,
+  score: { clef: "treble" | "bass" | "grand"; fifths: number; notes: DrawnNote[] }
+): StaveMetric[] {
+  const { Renderer, StaveConnector } = vf;
+  host.replaceChildren();
+  const key = vexKeySpec(score.fifths);
+  const available = Math.max(280, host.clientWidth || 480);
+  const signatureRoom = Math.abs(score.fifths) * 16;
+
+  if (score.clef === "grand") {
+    const trebleNotes = score.notes.filter((note) => note.midi >= 60);
+    const bassNotes = score.notes.filter((note) => note.midi < 60);
+    const width = Math.max(
+      available,
+      180 + signatureRoom + Math.max(trebleNotes.length, bassNotes.length, 1) * 46
+    );
+    const treblePad = staffPadding("treble", trebleNotes, score.fifths);
+    const bassPad = staffPadding("bass", bassNotes, score.fifths);
+    const trebleY = treblePad.above;
+    const bassY = trebleY + 90 + bassPad.above;
+    const height = bassY + 70 + bassPad.below;
+    const renderer = new Renderer(host, Renderer.Backends.SVG);
+    renderer.resize(width, height);
+    const context = renderer.getContext();
+    const treble = drawStave(vf, context, {
+      x: 10,
+      y: trebleY,
+      width: width - 20,
+      clef: "treble",
+      fifths: score.fifths,
+      key,
+      notes: trebleNotes,
+    });
+    const bass = drawStave(vf, context, {
+      x: 10,
+      y: bassY,
+      width: width - 20,
+      clef: "bass",
+      fifths: score.fifths,
+      key,
+      notes: bassNotes,
+    });
+    new StaveConnector(treble.stave, bass.stave).setType("brace").setContext(context).draw();
+    return [treble.metric, bass.metric];
+  }
+
+  const width = Math.max(available, 170 + signatureRoom + Math.max(score.notes.length, 1) * 46);
+  const pad = staffPadding(score.clef, score.notes, score.fifths);
+  const height = pad.above + 72 + pad.below;
+  const renderer = new Renderer(host, Renderer.Backends.SVG);
+  renderer.resize(width, height);
+  const context = renderer.getContext();
+  const drawn = drawStave(vf, context, {
+    x: 10,
+    y: pad.above,
+    width: width - 20,
+    clef: score.clef,
+    fifths: score.fifths,
+    key,
+    notes: score.notes,
+  });
+  return [drawn.metric];
+}
+
+function drawStave(
+  vf: typeof import("vexflow"),
+  context: ReturnType<InstanceType<typeof import("vexflow").Renderer>["getContext"]>,
+  options: {
+    x: number;
+    y: number;
+    width: number;
+    clef: "treble" | "bass";
+    fifths: number;
+    key: string;
+    notes: DrawnNote[];
+  }
+) {
+  const { Stave, StaveNote, Voice, VoiceMode, Formatter, Accidental } = vf;
+  const stave = new Stave(options.x, options.y, options.width);
+  stave.addClef(options.clef).addKeySignature(options.key);
+  stave.setContext(context).draw();
+
+  if (options.notes.length > 0) {
+    const tickables = options.notes.map((note) => {
+      const head = new StaveNote({
+        keys: [vexPitch(note.midi, options.fifths)],
+        duration: "q",
+        clef: options.clef,
+      });
+      head.setKeyStyle(0, {
+        fillStyle: note.open ? "#ffffff" : note.color,
+        strokeStyle: "#111111",
+        lineWidth: note.selected ? 2.4 : 1.1,
+      });
+      return head;
+    });
+    const voice = new Voice({ numBeats: 4, beatValue: 4 }).setMode(VoiceMode.SOFT);
+    voice.addTickables(tickables);
+    Accidental.applyAccidentals([voice], options.key);
+    const room = Math.max(48, stave.getNoteEndX() - stave.getNoteStartX() - 16);
+    const justify = Math.min(room, Math.max(72, options.notes.length * 54));
+    new Formatter().joinVoices([voice]).format([voice], justify);
+    voice.draw(context, stave);
+  }
+
+  return {
+    stave,
+    metric: {
+      clef: options.clef,
+      top: stave.getYForLine(0),
+      space: stave.getSpacingBetweenLines(),
+    },
+  };
 }
