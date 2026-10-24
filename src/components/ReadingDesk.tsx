@@ -4,14 +4,16 @@ import React from "react";
 import { StaffNotation } from "@/components/StaffNotation";
 import { Button } from "@/components/ui/button";
 import { CHROMATIC_NOTES } from "@/lib/music-theory";
-import { keyByFifths, MAJOR_KEYS, spellMidi, staffPosition } from "@/lib/notation";
+import { fifthsForTonic, keyByFifths, MAJOR_KEYS, spellMidi, staffPosition } from "@/lib/notation";
 
 export function StaffLesson({
   activeMidis,
+  soundColors,
   cursorMidi,
   onPickMidi,
 }: {
   activeMidis: number[];
+  soundColors?: Record<number, string>;
   cursorMidi: number;
   onPickMidi: (midi: number) => void;
 }) {
@@ -28,8 +30,9 @@ export function StaffLesson({
         <StaffNotation
           interactive
           litMidis={activeMidis}
+          soundColors={soundColors}
           cursorMidi={cursorMidi}
-          notes={activeMidis.map((note) => ({ midi: note, color: "#FACC00" }))}
+          notes={activeMidis.map((note) => ({ midi: note }))}
           onPickMidi={onPickMidi}
         />
       </div>
@@ -51,10 +54,12 @@ function countFromB(midi: number): string {
 
 export function GrandStaffLesson({
   activeMidis,
+  soundColors,
   cursorMidi,
   onPickMidi,
 }: {
   activeMidis: number[];
+  soundColors?: Record<number, string>;
   cursorMidi: number;
   onPickMidi: (midi: number) => void;
 }) {
@@ -68,8 +73,9 @@ export function GrandStaffLesson({
         clef="grand"
         interactive
         litMidis={activeMidis}
+        soundColors={soundColors}
         cursorMidi={cursorMidi}
-        notes={activeMidis.map((note) => ({ midi: note, color: "#FACC00" }))}
+        notes={activeMidis.map((note) => ({ midi: note }))}
         onPickMidi={onPickMidi}
       />
       <div className="grid grid-cols-3 gap-2">
@@ -304,7 +310,7 @@ export function InversionLesson({
         <p className="text-sm">
           A triad is the same triangle in every inversion. Only the bass corner changes. Root keeps step 1 on the bottom. First puts step 3 there. Second puts step 5 there.
         </p>
-        <StaffNotation notes={midis.map((midi) => ({ midi }))} />
+        <StaffNotation fifths={fifthsForTonic(rootPc)} notes={midis.map((midi) => ({ midi }))} />
         <div className="grid grid-cols-3 gap-2">
           {shapes.map((item, itemIndex) => (
             <Button

@@ -29,6 +29,7 @@ import { ChordFlowLab } from "@/components/ChordFlowLab";
 import { PolyrhythmOrbitLab } from "@/components/PolyrhythmOrbitLab";
 import { EarGym } from "@/components/EarGym";
 import { StaffNotation } from "@/components/StaffNotation";
+import { fifthsForTonic } from "@/lib/notation";
 import {
   GrandStaffLesson,
   InversionLesson,
@@ -67,6 +68,7 @@ export function CourseApp() {
   const [audioPhase, setAudioPhase] = React.useState<AudioPhase>("unready");
   const {
     activeMidis,
+    soundColors,
     cursorMidi,
     replaceMidis,
     toggleMidi,
@@ -74,7 +76,9 @@ export function CourseApp() {
     ensureMidi,
     clearChord,
     stepCursor,
+    moveSelection,
     addCursor,
+    removeCursor,
   } = usePerformance();
 
   const lesson = LESSONS[lessonIndex(lessonId)];
@@ -282,6 +286,7 @@ export function CourseApp() {
                 rootPc={rootPc}
                 highlightedPitchClasses={highlightedPitchClasses}
                 activeMidis={activeMidis}
+                soundColors={soundColors}
                 cursorMidi={cursorMidi}
                 labelMode={labelMode}
                 onLabelModeChange={setLabelMode}
@@ -290,7 +295,9 @@ export function CourseApp() {
                 onAddMidis={addMidis}
                 onSelectRoot={playRoot}
                 onStepCursor={stepCursor}
+                onMoveSelection={moveSelection}
                 onAddCursor={addCursor}
+                onRemoveCursor={removeCursor}
                 onClear={clearChord}
                 onHearShape={lesson.highlight === "none" ? undefined : hearShape}
               />
@@ -310,6 +317,7 @@ export function CourseApp() {
                 onSelectChord={setSelectedChord}
                 onSelectScale={setSelectedScale}
                 activeMidis={activeMidis}
+                soundColors={soundColors}
                 cursorMidi={cursorMidi}
                 onPlayNotes={handlePlayNotes}
                 onPlayMidi={toggleMidi}
@@ -422,6 +430,7 @@ function LessonVisual({
   onSelectChord,
   onSelectScale,
   activeMidis,
+  soundColors,
   cursorMidi,
   onPlayNotes,
   onPlayMidi,
@@ -433,6 +442,7 @@ function LessonVisual({
   selectedChord: ChordQuality;
   selectedScale: ScaleDefinition;
   activeMidis: number[];
+  soundColors: Record<number, string>;
   cursorMidi: number;
   onSelectRoot: (pc: number) => void;
   onSelectChord: (chord: ChordQuality) => void;
@@ -444,11 +454,21 @@ function LessonVisual({
   switch (lesson.visual) {
     case "staff":
       return (
-        <StaffLesson activeMidis={activeMidis} cursorMidi={cursorMidi} onPickMidi={onPlayMidi} />
+        <StaffLesson
+          activeMidis={activeMidis}
+          soundColors={soundColors}
+          cursorMidi={cursorMidi}
+          onPickMidi={onPlayMidi}
+        />
       );
     case "grand":
       return (
-        <GrandStaffLesson activeMidis={activeMidis} cursorMidi={cursorMidi} onPickMidi={onPlayMidi} />
+        <GrandStaffLesson
+          activeMidis={activeMidis}
+          soundColors={soundColors}
+          cursorMidi={cursorMidi}
+          onPickMidi={onPlayMidi}
+        />
       );
     case "rhythm":
       return <RhythmLesson onPlay={onPlayNotes} />;
@@ -458,7 +478,9 @@ function LessonVisual({
       return (
         <div className="space-y-3">
           <StaffNotation
+            fifths={fifthsForTonic(rootPc)}
             litMidis={activeMidis}
+            soundColors={soundColors}
             notes={[0, 1, 2].map((semi) => ({
               midi: 60 + rootPc + semi,
             }))}
@@ -470,7 +492,9 @@ function LessonVisual({
       return (
         <div className="space-y-3">
           <StaffNotation
+            fifths={fifthsForTonic(rootPc)}
             litMidis={activeMidis}
+            soundColors={soundColors}
             notes={[
               { midi: 60 + rootPc },
               { midi: 60 + rootPc + intervalSemitones },
@@ -488,7 +512,9 @@ function LessonVisual({
       return (
         <div className="space-y-3">
           <StaffNotation
+            fifths={fifthsForTonic(rootPc)}
             litMidis={activeMidis}
+            soundColors={soundColors}
             notes={MAJOR_STEPS.map((semi) => ({
               midi: 60 + rootPc + semi,
             }))}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { CHROMATIC_NOTES, ScaleDefinition } from "@/lib/music-theory";
 import type { LabelMode } from "@/lib/curriculum";
 import { fifthsForTonic, spellMidi, type Clef } from "@/lib/notation";
@@ -7,7 +8,7 @@ import { InteractiveKeyboard } from "@/components/InteractiveKeyboard";
 import { Fretboard } from "@/components/Fretboard";
 import { StaffNotation } from "@/components/StaffNotation";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Plus, Volume2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Minus, Plus, Volume2 } from "lucide-react";
 
 export type InstrumentId = "piano" | "guitar";
 
@@ -17,6 +18,8 @@ interface InstrumentStageProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
+  /** Fill for each sounding pitch. The same color is used on the staff. */
+  soundColors?: Record<number, string>;
   cursorMidi: number;
   labelMode: LabelMode;
   onLabelModeChange: (mode: LabelMode) => void;
@@ -24,8 +27,10 @@ interface InstrumentStageProps {
   onToggleMidi: (midi: number) => void;
   onAddMidis: (midis: number[]) => void;
   onSelectRoot: (pc: number) => void;
-  onStepCursor: (delta: number) => void;
-  onAddCursor: () => void;
+  onStepCursor: (delta: number, fifths?: number) => void;
+  onMoveSelection: (direction: number) => void;
+  onAddCursor: (fifths?: number) => void;
+  onRemoveCursor: () => void;
   onClear: () => void;
   onHearShape?: () => void;
   /** Hide the live staff when a page already shows the question staff above. */
@@ -47,6 +52,7 @@ export function InstrumentStage({
   rootPc,
   highlightedPitchClasses,
   activeMidis,
+  soundColors,
   cursorMidi,
   labelMode,
   onLabelModeChange,
@@ -55,7 +61,9 @@ export function InstrumentStage({
   onAddMidis,
   onSelectRoot,
   onStepCursor,
+  onMoveSelection,
   onAddCursor,
+  onRemoveCursor,
   onClear,
   onHearShape,
   showStaff = true,
@@ -144,37 +152,38 @@ export function InstrumentStage({
             <StaffNotation
               clef={clef}
               fifths={fifths}
-              notes={activeMidis.map((midi) => ({ midi, color: "#FACC00" }))}
+              soundColors={soundColors}
+              notes={activeMidis.map((midi) => ({ midi, color: soundColors?.[midi] }))}
               cursorMidi={cursorMidi}
               interactive
               onPickMidi={onToggleMidi}
             />
           </div>
-          <div className="flex shrink-0 flex-col gap-1">
-            <button
-              type="button"
-              aria-label="Move the note up"
-              onClick={() => onStepCursor(1)}
-              className="flex size-10 items-center justify-center rounded-base border-2 border-border bg-white cursor-pointer"
-            >
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <StaffButton label="Move the note up" onClick={() => onStepCursor(1, fifths)}>
               <ChevronUp className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Add ${spellMidi(cursorMidi, fifths).name}`}
-              onClick={onAddCursor}
-              className="flex size-10 items-center justify-center rounded-base border-2 border-border bg-main cursor-pointer"
-            >
-              <Plus className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Move the note down"
-              onClick={() => onStepCursor(-1)}
-              className="flex size-10 items-center justify-center rounded-base border-2 border-border bg-white cursor-pointer"
-            >
+            </StaffButton>
+            <div className="flex gap-1">
+              <StaffButton label="Select the previous note" onClick={() => onMoveSelection(-1)}>
+                <ChevronLeft className="size-4" />
+              </StaffButton>
+              <StaffButton
+                label={`Add ${spellMidi(cursorMidi, fifths).name}`}
+                onClick={() => onAddCursor(fifths)}
+                tone="add"
+              >
+                <Plus className="size-4" />
+              </StaffButton>
+              <StaffButton label="Select the next note" onClick={() => onMoveSelection(1)}>
+                <ChevronRight className="size-4" />
+              </StaffButton>
+            </div>
+            <StaffButton label="Move the note down" onClick={() => onStepCursor(-1, fifths)}>
               <ChevronDown className="size-4" />
-            </button>
+            </StaffButton>
+            <StaffButton label="Remove the selected note" onClick={onRemoveCursor}>
+              <Minus className="size-4" />
+            </StaffButton>
           </div>
         </div>
       )}
@@ -185,6 +194,7 @@ export function InstrumentStage({
           rootPc={rootPc}
           highlightedPitchClasses={highlightedPitchClasses}
           activeMidis={activeMidis}
+          soundColors={soundColors}
           cursorMidi={cursorMidi}
           labelMode={labelMode}
           onLabelModeChange={onLabelModeChange}
@@ -198,6 +208,7 @@ export function InstrumentStage({
           rootPc={rootPc}
           highlightedPitchClasses={highlightedPitchClasses}
           activeMidis={activeMidis}
+          soundColors={soundColors}
           cursorMidi={cursorMidi}
           labelMode={labelMode}
           scale={scale}
@@ -206,8 +217,33 @@ export function InstrumentStage({
         />
       )}
       <p className="mt-2 text-xs text-foreground/65">
-        Tap a key to add it. Tap again to remove it. Hold several keys for a chord. The hollow note is where Add will write.
+        Left and right choose a note. Up and down change its pitch. Plus writes a note, minus erases it. Each note keeps its own color.
       </p>
     </section>
+  );
+}
+
+function StaffButton({
+  label,
+  onClick,
+  tone = "plain",
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  tone?: "plain" | "add";
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={`flex size-8 items-center justify-center rounded-base border-2 border-border cursor-pointer ${
+        tone === "add" ? "bg-main" : "bg-white"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
