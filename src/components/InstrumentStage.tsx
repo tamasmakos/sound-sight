@@ -147,44 +147,25 @@ export function InstrumentStage({
       </div>
 
       {showStaff && (
-        <div className="mb-2 flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <StaffNotation
-              clef={clef}
-              fifths={fifths}
-              soundColors={soundColors}
-              notes={activeMidis.map((midi) => ({ midi, color: soundColors?.[midi] }))}
-              cursorMidi={cursorMidi}
-              interactive
-              onPickMidi={onToggleMidi}
-            />
-          </div>
-          <div className="flex shrink-0 flex-col items-center gap-1">
-            <StaffButton label="Move the note up" onClick={() => onStepCursor(1, fifths)}>
-              <ChevronUp className="size-4" />
-            </StaffButton>
-            <div className="flex gap-1">
-              <StaffButton label="Select the previous note" onClick={() => onMoveSelection(-1)}>
-                <ChevronLeft className="size-4" />
-              </StaffButton>
-              <StaffButton
-                label={`Add ${spellMidi(cursorMidi, fifths).name}`}
-                onClick={() => onAddCursor(fifths)}
-                tone="add"
-              >
-                <Plus className="size-4" />
-              </StaffButton>
-              <StaffButton label="Select the next note" onClick={() => onMoveSelection(1)}>
-                <ChevronRight className="size-4" />
-              </StaffButton>
-            </div>
-            <StaffButton label="Move the note down" onClick={() => onStepCursor(-1, fifths)}>
-              <ChevronDown className="size-4" />
-            </StaffButton>
-            <StaffButton label="Remove the selected note" onClick={onRemoveCursor}>
-              <Minus className="size-4" />
-            </StaffButton>
-          </div>
+        <div className="mb-1.5">
+          <StaffNotation
+            clef={clef}
+            fifths={fifths}
+            soundColors={soundColors}
+            notes={activeMidis.map((midi) => ({ midi, color: soundColors?.[midi] }))}
+            cursorMidi={cursorMidi}
+            interactive
+            onPickMidi={onToggleMidi}
+          />
+          <StaffTools
+            noteName={spellMidi(cursorMidi, fifths).name}
+            onPrevious={() => onMoveSelection(-1)}
+            onNext={() => onMoveSelection(1)}
+            onHigher={() => onStepCursor(1, fifths)}
+            onLower={() => onStepCursor(-1, fifths)}
+            onWrite={() => onAddCursor(fifths)}
+            onErase={onRemoveCursor}
+          />
         </div>
       )}
 
@@ -216,14 +197,65 @@ export function InstrumentStage({
           onAddMidis={onAddMidis}
         />
       )}
-      <p className="mt-2 text-xs text-foreground/65">
-        Left and right choose a note. Up and down change its pitch. Plus writes a note, minus erases it. Each note keeps its own color.
-      </p>
     </section>
   );
 }
 
-function StaffButton({
+function StaffTools({
+  noteName,
+  onPrevious,
+  onNext,
+  onHigher,
+  onLower,
+  onWrite,
+  onErase,
+}: {
+  noteName: string;
+  onPrevious: () => void;
+  onNext: () => void;
+  onHigher: () => void;
+  onLower: () => void;
+  onWrite: () => void;
+  onErase: () => void;
+}) {
+  return (
+    <div className="mt-1 flex items-center gap-1">
+      <ToolPair>
+        <ToolButton label="Previous note" onClick={onPrevious}>
+          <ChevronLeft className="size-3.5" />
+        </ToolButton>
+        <ToolButton label="Next note" onClick={onNext}>
+          <ChevronRight className="size-3.5" />
+        </ToolButton>
+      </ToolPair>
+      <ToolPair>
+        <ToolButton label="Raise the note" onClick={onHigher}>
+          <ChevronUp className="size-3.5" />
+        </ToolButton>
+        <ToolButton label="Lower the note" onClick={onLower}>
+          <ChevronDown className="size-3.5" />
+        </ToolButton>
+      </ToolPair>
+      <span className="ml-auto min-w-0 truncate pr-1 text-right font-heading text-xs leading-none">
+        {noteName}
+      </span>
+      <ToolPair>
+        <ToolButton label={`Write ${noteName}`} onClick={onWrite} tone="write">
+          <Plus className="size-3.5" />
+        </ToolButton>
+        <ToolButton label="Erase the note" onClick={onErase}>
+          <Minus className="size-3.5" />
+        </ToolButton>
+      </ToolPair>
+    </div>
+  );
+}
+
+function ToolPair({ children }: { children: ReactNode }) {
+  return <div className="flex overflow-hidden rounded-base border-2 border-border">{children}</div>;
+}
+
+function ToolButton({
   label,
   onClick,
   tone = "plain",
@@ -231,7 +263,7 @@ function StaffButton({
 }: {
   label: string;
   onClick: () => void;
-  tone?: "plain" | "add";
+  tone?: "plain" | "write";
   children: ReactNode;
 }) {
   return (
@@ -239,8 +271,8 @@ function StaffButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={`flex size-8 items-center justify-center rounded-base border-2 border-border cursor-pointer ${
-        tone === "add" ? "bg-main" : "bg-white"
+      className={`flex h-7 w-7 items-center justify-center border-r-2 border-border last:border-r-0 cursor-pointer ${
+        tone === "write" ? "bg-main" : "bg-white"
       }`}
     >
       {children}
