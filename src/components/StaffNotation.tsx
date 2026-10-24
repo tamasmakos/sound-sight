@@ -8,30 +8,47 @@ import { STEP, layoutStaff, ledgerPositions } from "@/lib/staff-geometry";
 interface StaffNote {
   midi: number;
   color?: string;
+  open?: boolean;
 }
 
 interface StaffNotationProps {
   clef?: "treble" | "bass" | "grand";
   notes?: StaffNote[];
+  /** Played notes. Matching noteheads turn yellow. */
+  litMidis?: number[];
+  /** Hollow notehead for the pitch the arrows are aiming at. */
+  cursorMidi?: number;
   fifths?: number;
   interactive?: boolean;
   onPickMidi?: (midi: number) => void;
 }
 
+function withCursor(notes: StaffNote[], cursorMidi?: number, litMidis?: number[]): StaffNote[] {
+  const lit = new Set(litMidis ?? []);
+  const painted = notes.map((note) =>
+    lit.has(note.midi) ? { ...note, color: "#FACC00", open: false } : note
+  );
+  if (cursorMidi === undefined || painted.some((note) => note.midi === cursorMidi)) return painted;
+  return [...painted, { midi: cursorMidi, open: true }];
+}
+
 export function StaffNotation({
   clef = "treble",
   notes = [],
+  litMidis,
+  cursorMidi,
   fifths = 0,
   interactive = false,
   onPickMidi,
 }: StaffNotationProps) {
+  const drawn = withCursor(notes, cursorMidi, litMidis);
   if (clef === "grand") {
     return (
       <div className="overflow-hidden rounded-base border-2 border-border bg-white p-2">
         <div className="grid gap-1">
           <StaffBed
             clef="treble"
-            notes={notes.filter((note) => note.midi >= 60)}
+            notes={drawn.filter((note) => note.midi >= 60)}
             fifths={fifths}
             interactive={interactive}
             onPickMidi={onPickMidi}
@@ -43,7 +60,7 @@ export function StaffNotation({
           </div>
           <StaffBed
             clef="bass"
-            notes={notes.filter((note) => note.midi < 60)}
+            notes={drawn.filter((note) => note.midi < 60)}
             fifths={fifths}
             interactive={interactive}
             onPickMidi={onPickMidi}
@@ -57,7 +74,7 @@ export function StaffNotation({
     <div className="overflow-hidden rounded-base border-2 border-border bg-white p-2">
       <StaffBed
         clef={clef}
-        notes={notes}
+        notes={drawn}
         fifths={fifths}
         interactive={interactive}
         onPickMidi={onPickMidi}
@@ -170,11 +187,13 @@ function StaffBed({
               rx={7.2}
               ry={5.2}
               transform={`rotate(-18 ${note.x} ${y})`}
-              fill={spelled[index].color ?? "#111"}
+              fill={spelled[index].open ? "#fff" : (spelled[index].color ?? "#111")}
               stroke="#000"
-              strokeWidth={1.5}
+              strokeWidth={spelled[index].open ? 2 : 1.5}
             />
-            <line x1={stemX} x2={stemX} y1={y} y2={stemEnd} stroke="#000" strokeWidth={1.6} />
+            {!spelled[index].open && (
+              <line x1={stemX} x2={stemX} y1={y} y2={stemEnd} stroke="#000" strokeWidth={1.6} />
+            )}
           </g>
         );
       })}

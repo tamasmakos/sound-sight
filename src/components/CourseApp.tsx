@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CHORD_QUALITIES,
   SCALES,
@@ -18,6 +20,7 @@ import {
 import type { LabelMode } from "@/lib/curriculum";
 import { soundEngine, type AudioPhase } from "@/lib/audio-engine";
 import { InstrumentStage, type InstrumentId } from "@/components/InstrumentStage";
+import { usePerformance } from "@/components/use-performance";
 import { PitchWalk } from "@/components/PitchWalk";
 import { HarmonicGeometryLab } from "@/components/HarmonicGeometryLab";
 import { IntervalWaveLab } from "@/components/IntervalWaveLab";
@@ -25,7 +28,6 @@ import { ScaleModeLab } from "@/components/ScaleModeLab";
 import { ChordFlowLab } from "@/components/ChordFlowLab";
 import { PolyrhythmOrbitLab } from "@/components/PolyrhythmOrbitLab";
 import { EarGym } from "@/components/EarGym";
-import { ExercisePanel } from "@/components/ExercisePanel";
 import { StaffNotation } from "@/components/StaffNotation";
 import {
   GrandStaffLesson,
@@ -46,21 +48,34 @@ const INITIAL_SHAPE_STEPS = [2, 5, 9];
 const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11, 12];
 
 export function CourseApp() {
-  const [lessonId, setLessonId] = React.useState(LESSONS[0].id);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedLesson = LESSONS.find((item) => item.id === searchParams.get("lesson")) ?? LESSONS[0];
+  const [lessonId, setLessonId] = React.useState(requestedLesson.id);
   const [visited, setVisited] = React.useState<Set<string>>(
-    () => new Set([LESSONS[0].id])
+    () => new Set([requestedLesson.id])
   );
   const [rootPc, setRootPc] = React.useState(0);
   const [selectedChord, setSelectedChord] = React.useState<ChordQuality>(
     CHORD_QUALITIES[0]
   );
   const [selectedScale, setSelectedScale] = React.useState<ScaleDefinition>(IONIAN);
-  const [activeMidis, setActiveMidis] = React.useState<number[]>([60]);
   const [shapeSteps, setShapeSteps] = React.useState<number[]>(INITIAL_SHAPE_STEPS);
   const [intervalSemitones, setIntervalSemitones] = React.useState(7);
-  const [labelMode, setLabelMode] = React.useState<LabelMode>("notes");
+  const [labelMode, setLabelMode] = React.useState<LabelMode>(requestedLesson.labelMode);
   const [instrument, setInstrument] = React.useState<InstrumentId>("piano");
   const [audioPhase, setAudioPhase] = React.useState<AudioPhase>("unready");
+  const {
+    activeMidis,
+    cursorMidi,
+    replaceMidis,
+    toggleMidi,
+    addMidis,
+    ensureMidi,
+    clearChord,
+    stepCursor,
+    addCursor,
+  } = usePerformance();
 
   const lesson = LESSONS[lessonIndex(lessonId)];
   const index = lessonIndex(lesson.id);
@@ -70,36 +85,29 @@ export function CourseApp() {
     return soundEngine.onChange(() => setAudioPhase(soundEngine.getState()));
   }, []);
 
-  const playMidis = React.useCallback((midis: number[], arpeggiate = false) => {
-    if (arpeggiate) soundEngine.playScaleSequence(midis, 0.19);
-    else if (midis.length === 1) soundEngine.playMidi(midis[0], 0.55);
-    else soundEngine.playChord(midis, 0.85, 0.03);
-  }, []);
-
   const handlePlayNotes = React.useCallback(
     (midis: number[], arpeggiate = false) => {
-      if (lesson.highlight === "none") {
-        setActiveMidis([]);
-      } else {
-        setActiveMidis(midis);
-        if (lesson.highlight === "sounding") {
-          setShapeSteps(
-            Array.from(
-              new Set(midis.map((midi) => semitoneFromRoot(midi, rootPc)))
-            )
-          );
-        }
+      if (lesson.highlight === "sounding") {
+        setShapeSteps(
+          Array.from(new Set(midis.map((midi) => semitoneFromRoot(midi, rootPc))))
+        );
       }
-      playMidis(midis, arpeggiate);
+      replaceMidis(midis, arpeggiate);
     },
-    [lesson.highlight, playMidis, rootPc]
+    [lesson.highlight, replaceMidis, rootPc]
   );
 
-  const handleTriggerSingleMidi = React.useCallback((midi: number) => {
-    soundEngine.unlock();
-    soundEngine.playMidi(midi, 0.55);
-    setActiveMidis([midi]);
+  const chooseRoot = React.useCallback((pc: number) => {
+    setRootPc(pc);
   }, []);
+
+  const playRoot = React.useCallback(
+    (pc: number) => {
+      setRootPc(pc);
+      ensureMidi(60 + pc);
+    },
+    [ensureMidi]
+  );
 
   const handleIntervalChange = React.useCallback((interval: IntervalInfo) => {
     setIntervalSemitones(interval.semitones);
@@ -139,7 +147,8 @@ export function CourseApp() {
     if (!next) return;
     setLessonId(next.id);
     setLabelMode(next.labelMode);
-    setActiveMidis([]);
+    clearChord();
+    router.replace(`/?lesson=${next.id}`, { scroll: false });
     setVisited((current) => {
       const updated = new Set(current);
       updated.add(next.id);
@@ -223,8 +232,7 @@ export function CourseApp() {
             size="sm"
             onClick={() => {
               soundEngine.setMuted(false);
-              soundEngine.unlock();
-              soundEngine.playMidi(60, 0.5);
+              replaceMidis([60]);
             }}
           >
             <Volume2 className="size-4" /> Hear a C
@@ -267,18 +275,23 @@ export function CourseApp() {
             </div>
             <p className="max-w-4xl text-sm leading-snug text-foreground/85">{lesson.teach}</p>
 
-            <div className="sticky top-[6.4rem] z-20 bg-background pb-1 lg:top-14">
+            <div className="z-20 bg-background pb-1 lg:sticky lg:top-14">
               <InstrumentStage
                 instrument={instrument}
                 onInstrumentChange={setInstrument}
                 rootPc={rootPc}
                 highlightedPitchClasses={highlightedPitchClasses}
                 activeMidis={activeMidis}
+                cursorMidi={cursorMidi}
                 labelMode={labelMode}
                 onLabelModeChange={setLabelMode}
                 scale={selectedScale}
-                onTriggerMidi={handleTriggerSingleMidi}
-                onSelectRoot={setRootPc}
+                onToggleMidi={toggleMidi}
+                onAddMidis={addMidis}
+                onSelectRoot={playRoot}
+                onStepCursor={stepCursor}
+                onAddCursor={addCursor}
+                onClear={clearChord}
                 onHearShape={lesson.highlight === "none" ? undefined : hearShape}
               />
             </div>
@@ -293,22 +306,29 @@ export function CourseApp() {
                 intervalSemitones={intervalSemitones}
                 selectedChord={selectedChord}
                 selectedScale={selectedScale}
-                onSelectRoot={setRootPc}
+                onSelectRoot={chooseRoot}
                 onSelectChord={setSelectedChord}
                 onSelectScale={setSelectedScale}
+                activeMidis={activeMidis}
+                cursorMidi={cursorMidi}
                 onPlayNotes={handlePlayNotes}
-                onPlayMidi={handleTriggerSingleMidi}
+                onPlayMidi={toggleMidi}
                 onIntervalChange={handleIntervalChange}
               />
             </section>
 
             {lesson.exercise && (
-              <ExercisePanel
-                kind={lesson.exercise}
-                rootPc={rootPc}
-                scale={selectedScale}
-                activeMidis={activeMidis}
-              />
+              <section className="flex flex-wrap items-center justify-between gap-3 rounded-base border-2 border-border bg-white p-3 shadow-shadow">
+                <div>
+                  <h2 className="font-heading text-base">Practice</h2>
+                  <p className="text-sm text-foreground/75">
+                    The check is on its own page. You answer by playing the instrument and writing on the staff.
+                  </p>
+                </div>
+                <Button nativeButton={false} render={<Link href={`/practice/${lesson.id}`} />}>
+                  Start practice
+                </Button>
+              </section>
             )}
 
             <div className="flex items-center justify-between gap-3 pb-4">
@@ -401,6 +421,8 @@ function LessonVisual({
   onSelectRoot,
   onSelectChord,
   onSelectScale,
+  activeMidis,
+  cursorMidi,
   onPlayNotes,
   onPlayMidi,
   onIntervalChange,
@@ -410,6 +432,8 @@ function LessonVisual({
   intervalSemitones: number;
   selectedChord: ChordQuality;
   selectedScale: ScaleDefinition;
+  activeMidis: number[];
+  cursorMidi: number;
   onSelectRoot: (pc: number) => void;
   onSelectChord: (chord: ChordQuality) => void;
   onSelectScale: (scale: ScaleDefinition) => void;
@@ -419,20 +443,24 @@ function LessonVisual({
 }) {
   switch (lesson.visual) {
     case "staff":
-      return <StaffLesson onPlayMidi={onPlayMidi} />;
+      return (
+        <StaffLesson activeMidis={activeMidis} cursorMidi={cursorMidi} onPickMidi={onPlayMidi} />
+      );
     case "grand":
-      return <GrandStaffLesson onPlayMidi={onPlayMidi} />;
+      return (
+        <GrandStaffLesson activeMidis={activeMidis} cursorMidi={cursorMidi} onPickMidi={onPlayMidi} />
+      );
     case "rhythm":
-      return <RhythmLesson />;
+      return <RhythmLesson onPlay={onPlayNotes} />;
     case "meter":
-      return <MeterLesson />;
+      return <MeterLesson onPlay={onPlayNotes} />;
     case "steps":
       return (
         <div className="space-y-3">
           <StaffNotation
-            notes={[0, 1, 2].map((semi, noteIndex) => ({
+            litMidis={activeMidis}
+            notes={[0, 1, 2].map((semi) => ({
               midi: 60 + rootPc + semi,
-              color: noteIndex === 0 ? "#FACC00" : "#111111",
             }))}
           />
           <PitchWalk kind="steps" rootPc={rootPc} onPlayMidi={onPlayMidi} />
@@ -442,8 +470,9 @@ function LessonVisual({
       return (
         <div className="space-y-3">
           <StaffNotation
+            litMidis={activeMidis}
             notes={[
-              { midi: 60 + rootPc, color: "#FACC00" },
+              { midi: 60 + rootPc },
               { midi: 60 + rootPc + intervalSemitones },
             ]}
           />
@@ -459,18 +488,18 @@ function LessonVisual({
       return (
         <div className="space-y-3">
           <StaffNotation
-            notes={MAJOR_STEPS.map((semi, noteIndex) => ({
+            litMidis={activeMidis}
+            notes={MAJOR_STEPS.map((semi) => ({
               midi: 60 + rootPc + semi,
-              color: noteIndex === 0 || noteIndex === MAJOR_STEPS.length - 1 ? "#FACC00" : "#111111",
             }))}
           />
           <PitchWalk kind="major" rootPc={rootPc} onPlayMidi={onPlayMidi} />
         </div>
       );
     case "keys":
-      return <KeySignatureLesson onPlayMidi={onPlayMidi} onSelectRoot={onSelectRoot} />;
+      return <KeySignatureLesson onPlayNotes={onPlayNotes} onSelectRoot={onSelectRoot} />;
     case "minor":
-      return <MinorLesson onPlayMidi={onPlayMidi} onSelectRoot={onSelectRoot} />;
+      return <MinorLesson onPlayNotes={onPlayNotes} onSelectRoot={onSelectRoot} />;
     case "modes":
       return (
         <ScaleModeLab
@@ -501,7 +530,7 @@ function LessonVisual({
     case "motion":
       return <ChordFlowLab embedded rootPc={rootPc} onPlayNotes={onPlayNotes} />;
     case "time":
-      return <PolyrhythmOrbitLab embedded />;
+      return <PolyrhythmOrbitLab embedded onPlayNotes={onPlayNotes} />;
     case "ear":
       return <EarGym onPlayNotes={onPlayNotes} />;
     default:

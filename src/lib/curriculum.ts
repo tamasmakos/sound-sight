@@ -54,7 +54,7 @@ export const LESSONS: Lesson[] = [
     title: "Five lines, four spaces",
     teach:
       "The staff is a ladder. Lines and spaces alternate, and each rung is the next letter. The middle line of the treble staff is B4. Count letters up or down from that axis.",
-    look: "Click a rung. The note and the piano agree.",
+    look: "The staff and the instrument are the same notes. Arrows move the hollow note. Add writes it.",
     highlight: "home",
     labelMode: "notes",
     visual: "staff",
@@ -236,10 +236,11 @@ export const LESSONS: Lesson[] = [
     title: "Hear it, then see it",
     teach:
       "Name the interval, the chord, or the mode from the sound. The staff appears after you answer, so the picture confirms what you already heard.",
-    look: "Listen first.",
+    look: "Listen first. Then play it back on the instrument.",
     highlight: "none",
     labelMode: "notes",
     visual: "ear",
+    exercise: "playback",
   },
 ];
 

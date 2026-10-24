@@ -5,10 +5,17 @@ import { StaffNotation } from "@/components/StaffNotation";
 import { Button } from "@/components/ui/button";
 import { CHROMATIC_NOTES } from "@/lib/music-theory";
 import { keyByFifths, MAJOR_KEYS, spellMidi, staffPosition } from "@/lib/notation";
-import { soundEngine } from "@/lib/audio-engine";
 
-export function StaffLesson({ onPlayMidi }: { onPlayMidi: (midi: number) => void }) {
-  const [midi, setMidi] = React.useState(71);
+export function StaffLesson({
+  activeMidis,
+  cursorMidi,
+  onPickMidi,
+}: {
+  activeMidis: number[];
+  cursorMidi: number;
+  onPickMidi: (midi: number) => void;
+}) {
+  const midi = activeMidis[activeMidis.length - 1] ?? cursorMidi;
   const spelled = spellMidi(midi);
   const lineNote = staffPosition(midi, "treble") % 2 === 0;
 
@@ -16,15 +23,14 @@ export function StaffLesson({ onPlayMidi }: { onPlayMidi: (midi: number) => void
     <div className="grid gap-3 lg:grid-cols-2">
       <div className="rounded-base border-2 border-border bg-white p-3">
         <p className="mb-2 text-sm">
-          Five lines, four spaces. The middle line is the axis. Click a line or a space.
+          Five lines, four spaces. The middle line is the axis. Click a line or a space and the instrument lights the same pitch.
         </p>
         <StaffNotation
           interactive
-          notes={[{ midi, color: "#FACC00" }]}
-          onPickMidi={(next) => {
-            setMidi(next);
-            onPlayMidi(next);
-          }}
+          litMidis={activeMidis}
+          cursorMidi={cursorMidi}
+          notes={activeMidis.map((note) => ({ midi: note, color: "#FACC00" }))}
+          onPickMidi={onPickMidi}
         />
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -43,21 +49,28 @@ function countFromB(midi: number): string {
   return `${Math.abs(steps)} letter${Math.abs(steps) === 1 ? "" : "s"} ${steps > 0 ? "above" : "below"}`;
 }
 
-export function GrandStaffLesson({ onPlayMidi }: { onPlayMidi: (midi: number) => void }) {
-  const [midi, setMidi] = React.useState(60);
+export function GrandStaffLesson({
+  activeMidis,
+  cursorMidi,
+  onPickMidi,
+}: {
+  activeMidis: number[];
+  cursorMidi: number;
+  onPickMidi: (midi: number) => void;
+}) {
+  const midi = activeMidis[activeMidis.length - 1] ?? cursorMidi;
   return (
     <div className="space-y-2">
       <p className="text-sm">
-        Treble and bass are the same ladder, folded around middle C. The note between the staves is one pitch with two names only if you change the clef — here it is always C.
+        Treble and bass are the same ladder, folded around middle C. Click either staff. The instrument keeps every note you add.
       </p>
       <StaffNotation
         clef="grand"
         interactive
-        notes={[{ midi, color: "#FACC00" }]}
-        onPickMidi={(next) => {
-          setMidi(next);
-          onPlayMidi(next);
-        }}
+        litMidis={activeMidis}
+        cursorMidi={cursorMidi}
+        notes={activeMidis.map((note) => ({ midi: note, color: "#FACC00" }))}
+        onPickMidi={onPickMidi}
       />
       <div className="grid grid-cols-3 gap-2">
         <Info label="Sounding" value={spellMidi(midi).name} />
@@ -75,12 +88,10 @@ const SPLITS = [
   { label: "Eighth", divisions: 8 },
 ];
 
-export function RhythmLesson() {
+export function RhythmLesson({ onPlay }: { onPlay: (midis: number[], arpeggiate?: boolean) => void }) {
   const [divisions, setDivisions] = React.useState(4);
   const play = (count: number) => {
-    for (let index = 0; index < count; index += 1) {
-      window.setTimeout(() => soundEngine.playPercussion(index === 0 ? "accent" : "ringA"), index * (1200 / count));
-    }
+    onPlay(Array.from({ length: count }, () => 60), true);
   };
 
   return (
@@ -128,16 +139,13 @@ const METERS = [
   { id: "6/8", groups: [3, 3] },
 ];
 
-export function MeterLesson() {
+export function MeterLesson({ onPlay }: { onPlay: (midis: number[], arpeggiate?: boolean) => void }) {
   const [meter, setMeter] = React.useState(METERS[2]);
   const play = (groups: number[]) => {
-    const beats = groups.flatMap((size) => Array.from({ length: size }, (_, index) => index === 0));
-    beats.forEach((strong, index) => {
-      window.setTimeout(
-        () => soundEngine.playPercussion(strong ? "accent" : "ringB"),
-        index * 280
-      );
-    });
+    const beats = groups.flatMap((size) =>
+      Array.from({ length: size }, (_, index) => (index === 0 ? 60 : 67))
+    );
+    onPlay(beats, true);
   };
 
   return (
@@ -183,10 +191,10 @@ export function MeterLesson() {
 }
 
 export function KeySignatureLesson({
-  onPlayMidi,
+  onPlayNotes,
   onSelectRoot,
 }: {
-  onPlayMidi: (midi: number) => void;
+  onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
   onSelectRoot: (pc: number) => void;
 }) {
   const [fifths, setFifths] = React.useState(0);
@@ -201,8 +209,7 @@ export function KeySignatureLesson({
           const picked = keyByFifths(next);
           onSelectRoot(picked.tonicPc);
           const scale = [0, 2, 4, 5, 7, 9, 11, 12].map((semi) => 60 + picked.tonicPc + semi);
-          soundEngine.playScaleSequence(scale, 0.16);
-          onPlayMidi(60 + picked.tonicPc);
+          onPlayNotes(scale, true);
         }}
       />
       <div className="space-y-2">
@@ -221,10 +228,10 @@ export function KeySignatureLesson({
 }
 
 export function MinorLesson({
-  onPlayMidi,
+  onPlayNotes,
   onSelectRoot,
 }: {
-  onPlayMidi: (midi: number) => void;
+  onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
   onSelectRoot: (pc: number) => void;
 }) {
   const [fifths, setFifths] = React.useState(0);
@@ -247,8 +254,8 @@ export function MinorLesson({
         <div className="grid grid-cols-2 gap-2">
           <Button
             onClick={() => {
-              soundEngine.playScaleSequence([0, 2, 4, 5, 7, 9, 11, 12].map((semi) => 60 + key.tonicPc + semi), 0.16);
-              onPlayMidi(60 + key.tonicPc);
+              onSelectRoot(key.tonicPc);
+              onPlayNotes([0, 2, 4, 5, 7, 9, 11, 12].map((semi) => 60 + key.tonicPc + semi), true);
             }}
           >
             {key.major} major
@@ -256,8 +263,7 @@ export function MinorLesson({
           <Button
             variant="neutral"
             onClick={() => {
-              soundEngine.playScaleSequence([0, 2, 3, 5, 7, 8, 10, 12].map((semi) => 60 + minorPc + semi), 0.16);
-              onPlayMidi(60 + minorPc);
+              onPlayNotes([0, 2, 3, 5, 7, 8, 10, 12].map((semi) => 60 + minorPc + semi), true);
             }}
           >
             {key.minor} minor
