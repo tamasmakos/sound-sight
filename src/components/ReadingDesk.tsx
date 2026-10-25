@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import { StaffNotation } from "@/components/StaffNotation";
 import { Button } from "@/components/ui/button";
 import { CHROMATIC_NOTES } from "@/lib/music-theory";
-import { fifthsForTonic, keyByFifths, MAJOR_KEYS, spellMidi, staffPosition } from "@/lib/notation";
+import { keyByFifths, MAJOR_KEYS, spellMidi, staffPosition } from "@/lib/notation";
 
 export function StaffLesson({ activeMidis }: { activeMidis: number[] }) {
   const midi = activeMidis.length > 0 ? activeMidis[activeMidis.length - 1] : null;
@@ -47,7 +46,7 @@ export function GrandStaffLesson({ activeMidis }: { activeMidis: number[] }) {
   return (
     <div className="space-y-2">
       <p className="text-sm">
-        Treble and bass meet at middle C. Play a low key and the note sits on the bass staff. Play a high key and it sits on the treble staff. Play both and they stack as one chord.
+        Treble and bass meet at middle C. The − and + on the piano move the octaves, down into the bass. Play a low key and the note sits on the bass staff. Play a high key and it sits on the treble staff. Play both and they stack as one chord.
       </p>
       <div className="grid grid-cols-3 gap-2">
         <Info label="Sounding" value={sounding} />
@@ -168,13 +167,16 @@ export function MeterLesson({ onPlay }: { onPlay: (midis: number[], arpeggiate?:
 }
 
 export function KeySignatureLesson({
+  fifths,
+  onFifths,
   onPlayNotes,
   onSelectRoot,
 }: {
+  fifths: number;
+  onFifths: (fifths: number) => void;
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
   onSelectRoot: (pc: number) => void;
 }) {
-  const [fifths, setFifths] = React.useState(0);
   const key = keyByFifths(fifths);
 
   return (
@@ -182,7 +184,7 @@ export function KeySignatureLesson({
       <CircleOfFifths
         fifths={fifths}
         onPick={(next) => {
-          setFifths(next);
+          onFifths(next);
           const picked = keyByFifths(next);
           onSelectRoot(picked.tonicPc);
           const scale = [0, 2, 4, 5, 7, 9, 11, 12].map((semi) => 60 + picked.tonicPc + semi);
@@ -195,7 +197,6 @@ export function KeySignatureLesson({
           <Info label="Minor" value={key.minor} />
           <Info label="Accidentals" value={fifths === 0 ? "None" : `${Math.abs(fifths)} ${fifths > 0 ? "sharps" : "flats"}`} />
         </div>
-        <StaffNotation clef="treble" fifths={fifths} notes={[{ midi: 60 + key.tonicPc, color: "#FACC00" }]} />
         <p className="text-sm">
           Turn the circle. Clockwise adds a sharp. Counterclockwise adds a flat. The last sharp sits a half step under the major home.
         </p>
@@ -205,13 +206,16 @@ export function KeySignatureLesson({
 }
 
 export function MinorLesson({
+  fifths,
+  onFifths,
   onPlayNotes,
   onSelectRoot,
 }: {
+  fifths: number;
+  onFifths: (fifths: number) => void;
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
   onSelectRoot: (pc: number) => void;
 }) {
-  const [fifths, setFifths] = React.useState(0);
   const key = keyByFifths(fifths);
   const minorPc = (key.tonicPc + 9) % 12;
 
@@ -221,14 +225,6 @@ export function MinorLesson({
         <p className="text-sm">
           Relative major and minor share one signature. The minor home is three semitones under the major home — a minor third, the same flip as a minor triad.
         </p>
-        <StaffNotation
-          chord
-          fifths={fifths}
-          notes={[
-            { midi: 60 + key.tonicPc, color: "#F5C400" },
-            { midi: 60 + minorPc, color: "#8B7CFF" },
-          ]}
-        />
         <div className="grid grid-cols-2 gap-2">
           <Button
             onClick={() => {
@@ -252,7 +248,7 @@ export function MinorLesson({
         fifths={fifths}
         showMinor
         onPick={(next) => {
-          setFifths(next);
+          onFifths(next);
           onSelectRoot(keyByFifths(next).tonicPc);
         }}
       />
@@ -262,9 +258,13 @@ export function MinorLesson({
 
 export function InversionLesson({
   rootPc,
+  index,
+  onIndex,
   onPlay,
 }: {
   rootPc: number;
+  index: number;
+  onIndex: (index: number) => void;
   onPlay: (midis: number[]) => void;
 }) {
   const shapes = [
@@ -272,9 +272,7 @@ export function InversionLesson({
     { id: "First", intervals: [4, 7, 12], bass: "3" },
     { id: "Second", intervals: [7, 12, 16], bass: "5" },
   ];
-  const [index, setIndex] = React.useState(0);
   const shape = shapes[index];
-  const midis = shape.intervals.map((semi) => 60 + rootPc + semi);
 
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
@@ -282,14 +280,13 @@ export function InversionLesson({
         <p className="text-sm">
           A triad is the same triangle in every inversion. Only the bass corner changes. Root keeps step 1 on the bottom. First puts step 3 there. Second puts step 5 there.
         </p>
-        <StaffNotation chord fifths={fifthsForTonic(rootPc)} notes={midis.map((midi) => ({ midi }))} />
         <div className="grid grid-cols-3 gap-2">
           {shapes.map((item, itemIndex) => (
             <Button
               key={item.id}
               variant={itemIndex === index ? "default" : "neutral"}
               onClick={() => {
-                setIndex(itemIndex);
+                onIndex(itemIndex);
                 onPlay(item.intervals.map((semi) => 60 + rootPc + semi));
               }}
             >
