@@ -6,41 +6,25 @@ import { Button } from "@/components/ui/button";
 import { CHROMATIC_NOTES } from "@/lib/music-theory";
 import { fifthsForTonic, keyByFifths, MAJOR_KEYS, spellMidi, staffPosition } from "@/lib/notation";
 
-export function StaffLesson({
-  activeMidis,
-  soundColors,
-  cursorMidi,
-  onPickMidi,
-}: {
-  activeMidis: number[];
-  soundColors?: Record<number, string>;
-  cursorMidi: number;
-  onPickMidi: (midi: number) => void;
-}) {
-  const midi = activeMidis[activeMidis.length - 1] ?? cursorMidi;
-  const spelled = spellMidi(midi);
-  const lineNote = staffPosition(midi, "treble") % 2 === 0;
+export function StaffLesson({ activeMidis }: { activeMidis: number[] }) {
+  const midi = activeMidis.length > 0 ? activeMidis[activeMidis.length - 1] : null;
+  const lineNote = midi !== null && staffPosition(midi, "treble") % 2 === 0;
+  const sounding =
+    activeMidis.length === 0 ? "—" : activeMidis.map((note) => spellMidi(note).name).join(" ");
 
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      <div className="rounded-base border-2 border-border bg-white p-3">
-        <p className="mb-2 text-sm">
-          Five lines, four spaces. The middle line is the axis. Click a line or a space and the instrument lights the same pitch.
-        </p>
-        <StaffNotation
-          interactive
-          litMidis={activeMidis}
-          soundColors={soundColors}
-          cursorMidi={cursorMidi}
-          notes={activeMidis.map((note) => ({ midi: note }))}
-          onPickMidi={onPickMidi}
-        />
-      </div>
+    <div className="space-y-2">
+      <p className="text-sm">
+        Play the piano or the guitar. The small staff writes the same pitches, each in its own color. Five lines, four spaces. The middle line is B4.
+      </p>
       <div className="grid grid-cols-2 gap-2">
-        <Info label="Note" value={spelled.name} />
-        <Info label="Sits on" value={lineNote ? "A line" : "A space"} />
+        <Info label="Sounding" value={sounding} />
+        <Info
+          label="Sits on"
+          value={midi === null ? "—" : activeMidis.length > 1 ? "A chord" : lineNote ? "A line" : "A space"}
+        />
         <Info label="Middle line" value="B4" />
-        <Info label="Count from B" value={countFromB(midi)} />
+        <Info label="Count from B" value={midi === null ? "—" : countFromB(midi)} />
       </div>
     </div>
   );
@@ -52,36 +36,23 @@ function countFromB(midi: number): string {
   return `${Math.abs(steps)} letter${Math.abs(steps) === 1 ? "" : "s"} ${steps > 0 ? "above" : "below"}`;
 }
 
-export function GrandStaffLesson({
-  activeMidis,
-  soundColors,
-  cursorMidi,
-  onPickMidi,
-}: {
-  activeMidis: number[];
-  soundColors?: Record<number, string>;
-  cursorMidi: number;
-  onPickMidi: (midi: number) => void;
-}) {
-  const midi = activeMidis[activeMidis.length - 1] ?? cursorMidi;
+export function GrandStaffLesson({ activeMidis }: { activeMidis: number[] }) {
+  const midi = activeMidis.length > 0 ? activeMidis[activeMidis.length - 1] : null;
+  const low = activeMidis.some((note) => note < 60);
+  const high = activeMidis.some((note) => note >= 60);
+  const clef = midi === null ? "—" : low && high ? "Both" : low ? "Bass" : "Treble";
+  const sounding =
+    activeMidis.length === 0 ? "—" : activeMidis.map((note) => spellMidi(note).name).join(" ");
+
   return (
     <div className="space-y-2">
       <p className="text-sm">
-        Treble and bass are the same ladder, folded around middle C. Click either staff. The instrument keeps every note you add.
+        Treble and bass meet at middle C. Play a low key and the note sits on the bass staff. Play a high key and it sits on the treble staff. Play both and they stack as one chord.
       </p>
-      <StaffNotation
-        clef="grand"
-        interactive
-        litMidis={activeMidis}
-        soundColors={soundColors}
-        cursorMidi={cursorMidi}
-        notes={activeMidis.map((note) => ({ midi: note }))}
-        onPickMidi={onPickMidi}
-      />
       <div className="grid grid-cols-3 gap-2">
-        <Info label="Sounding" value={spellMidi(midi).name} />
-        <Info label="Clef" value={midi >= 60 ? "Treble" : "Bass"} />
-        <Info label="Octave" value={String(spellMidi(midi).octave)} />
+        <Info label="Sounding" value={sounding} />
+        <Info label="Clef" value={clef} />
+        <Info label="Octave" value={midi === null ? "—" : String(spellMidi(midi).octave)} />
       </div>
     </div>
   );
@@ -251,10 +222,11 @@ export function MinorLesson({
           Relative major and minor share one signature. The minor home is three semitones under the major home — a minor third, the same flip as a minor triad.
         </p>
         <StaffNotation
+          chord
           fifths={fifths}
           notes={[
-            { midi: 60 + key.tonicPc, color: "#FACC00" },
-            { midi: 60 + minorPc, color: "#7A83FF" },
+            { midi: 60 + key.tonicPc, color: "#F5C400" },
+            { midi: 60 + minorPc, color: "#8B7CFF" },
           ]}
         />
         <div className="grid grid-cols-2 gap-2">
@@ -310,7 +282,7 @@ export function InversionLesson({
         <p className="text-sm">
           A triad is the same triangle in every inversion. Only the bass corner changes. Root keeps step 1 on the bottom. First puts step 3 there. Second puts step 5 there.
         </p>
-        <StaffNotation fifths={fifthsForTonic(rootPc)} notes={midis.map((midi) => ({ midi }))} />
+        <StaffNotation chord fifths={fifthsForTonic(rootPc)} notes={midis.map((midi) => ({ midi }))} />
         <div className="grid grid-cols-3 gap-2">
           {shapes.map((item, itemIndex) => (
             <Button

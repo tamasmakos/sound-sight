@@ -69,16 +69,11 @@ export function CourseApp() {
   const {
     activeMidis,
     soundColors,
-    cursorMidi,
     replaceMidis,
     toggleMidi,
     addMidis,
     ensureMidi,
     clearChord,
-    stepCursor,
-    moveSelection,
-    addCursor,
-    removeCursor,
   } = usePerformance();
 
   const lesson = LESSONS[lessonIndex(lessonId)];
@@ -287,17 +282,12 @@ export function CourseApp() {
                 highlightedPitchClasses={highlightedPitchClasses}
                 activeMidis={activeMidis}
                 soundColors={soundColors}
-                cursorMidi={cursorMidi}
                 labelMode={labelMode}
                 onLabelModeChange={setLabelMode}
                 scale={selectedScale}
                 onToggleMidi={toggleMidi}
                 onAddMidis={addMidis}
                 onSelectRoot={playRoot}
-                onStepCursor={stepCursor}
-                onMoveSelection={moveSelection}
-                onAddCursor={addCursor}
-                onRemoveCursor={removeCursor}
                 onClear={clearChord}
                 onHearShape={lesson.highlight === "none" ? undefined : hearShape}
               />
@@ -317,8 +307,6 @@ export function CourseApp() {
                 onSelectChord={setSelectedChord}
                 onSelectScale={setSelectedScale}
                 activeMidis={activeMidis}
-                soundColors={soundColors}
-                cursorMidi={cursorMidi}
                 onPlayNotes={handlePlayNotes}
                 onPlayMidi={toggleMidi}
                 onIntervalChange={handleIntervalChange}
@@ -330,7 +318,7 @@ export function CourseApp() {
                 <div>
                   <h2 className="font-heading text-base">Practice</h2>
                   <p className="text-sm text-foreground/75">
-                    The check is on its own page. You answer by playing the instrument and writing on the staff.
+                    The check is on its own page. You answer by playing. The staff writes the same notes.
                   </p>
                 </div>
                 <Button nativeButton={false} render={<Link href={`/practice/${lesson.id}`} />}>
@@ -430,8 +418,6 @@ function LessonVisual({
   onSelectChord,
   onSelectScale,
   activeMidis,
-  soundColors,
-  cursorMidi,
   onPlayNotes,
   onPlayMidi,
   onIntervalChange,
@@ -442,8 +428,6 @@ function LessonVisual({
   selectedChord: ChordQuality;
   selectedScale: ScaleDefinition;
   activeMidis: number[];
-  soundColors: Record<number, string>;
-  cursorMidi: number;
   onSelectRoot: (pc: number) => void;
   onSelectChord: (chord: ChordQuality) => void;
   onSelectScale: (scale: ScaleDefinition) => void;
@@ -453,23 +437,9 @@ function LessonVisual({
 }) {
   switch (lesson.visual) {
     case "staff":
-      return (
-        <StaffLesson
-          activeMidis={activeMidis}
-          soundColors={soundColors}
-          cursorMidi={cursorMidi}
-          onPickMidi={onPlayMidi}
-        />
-      );
+      return <StaffLesson activeMidis={activeMidis} />;
     case "grand":
-      return (
-        <GrandStaffLesson
-          activeMidis={activeMidis}
-          soundColors={soundColors}
-          cursorMidi={cursorMidi}
-          onPickMidi={onPlayMidi}
-        />
-      );
+      return <GrandStaffLesson activeMidis={activeMidis} />;
     case "rhythm":
       return <RhythmLesson onPlay={onPlayNotes} />;
     case "meter":
@@ -480,7 +450,6 @@ function LessonVisual({
           <StaffNotation
             fifths={fifthsForTonic(rootPc)}
             litMidis={activeMidis}
-            soundColors={soundColors}
             notes={[0, 1, 2].map((semi) => ({
               midi: 60 + rootPc + semi,
             }))}
@@ -492,9 +461,9 @@ function LessonVisual({
       return (
         <div className="space-y-3">
           <StaffNotation
+            chord
             fifths={fifthsForTonic(rootPc)}
             litMidis={activeMidis}
-            soundColors={soundColors}
             notes={[
               { midi: 60 + rootPc },
               { midi: 60 + rootPc + intervalSemitones },
@@ -514,7 +483,6 @@ function LessonVisual({
           <StaffNotation
             fifths={fifthsForTonic(rootPc)}
             litMidis={activeMidis}
-            soundColors={soundColors}
             notes={MAJOR_STEPS.map((semi) => ({
               midi: 60 + rootPc + semi,
             }))}

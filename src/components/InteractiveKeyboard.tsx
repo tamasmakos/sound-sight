@@ -12,13 +12,13 @@ import type { LabelMode } from "@/lib/curriculum";
 import { soundEngine } from "@/lib/audio-engine";
 import { useChordGesture } from "@/lib/chord-gesture";
 import { spellMidi } from "@/lib/notation";
+import { playedColor } from "@/lib/note-colors";
 
 interface InteractiveKeyboardProps {
   rootPc: number;
   highlightedPitchClasses: number[];
   activeMidis: number[];
   soundColors?: Record<number, string>;
-  cursorMidi?: number;
   labelMode: LabelMode;
   onLabelModeChange: (mode: LabelMode) => void;
   scale: ScaleDefinition | null;
@@ -63,7 +63,6 @@ export function InteractiveKeyboard({
   highlightedPitchClasses,
   activeMidis,
   soundColors,
-  cursorMidi,
   labelMode,
   onLabelModeChange,
   scale,
@@ -202,13 +201,12 @@ export function InteractiveKeyboard({
       </div>
       )}
 
-      <div className="relative h-32 w-full select-none overflow-hidden rounded-base border-2 border-border bg-neutral-950 p-1 sm:h-36">
+      <div className="relative h-44 w-full select-none overflow-hidden rounded-base border-2 border-border bg-neutral-950 p-1 sm:h-52">
         <div className="relative flex h-full w-full">
           {whiteKeys.map((key) => {
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
             const isActive = activeMidis.includes(key.midi);
             const isRoot = key.pc === rootPc;
-            const isCursor = cursorMidi === key.midi;
             return (
               <button
                 key={key.midi}
@@ -220,10 +218,10 @@ export function InteractiveKeyboard({
                 onPointerCancel={(event) => gesture.pointerCancel(event.pointerId)}
                 className={`relative flex h-full flex-1 touch-manipulation flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
                   isActive ? "translate-y-0.5" : ""
-                } ${isCursor ? "ring-2 ring-inset ring-black" : ""}`}
+                }`}
                 style={{
                   backgroundColor: isActive
-                    ? (soundColors?.[key.midi] ?? "var(--main)")
+                    ? playedColor(soundColors?.[key.midi])
                     : isHighlighted
                       ? "color-mix(in srgb, var(--main) 55%, white)"
                       : "#ffffff",
@@ -243,7 +241,6 @@ export function InteractiveKeyboard({
             const isHighlighted = highlightedPitchClasses.includes(key.pc);
             const isActive = activeMidis.includes(key.midi);
             const isRoot = key.pc === rootPc;
-            const isCursor = cursorMidi === key.midi;
             const lit = isHighlighted || isActive;
             return (
               <button
@@ -258,15 +255,13 @@ export function InteractiveKeyboard({
                   left: `${key.leftPercent}%`,
                   width: "3.5%",
                   backgroundColor: isActive
-                    ? (soundColors?.[key.midi] ?? "var(--main)")
+                    ? playedColor(soundColors?.[key.midi])
                     : isHighlighted
                       ? "color-mix(in srgb, var(--main) 72%, #161616)"
                       : "#161616",
                 }}
                 className={`absolute top-0 z-10 flex h-[46%] touch-manipulation flex-col items-center justify-end rounded-b-base border-2 border-black pb-1 cursor-pointer ${
-                  isActive ? "translate-y-0.5" : ""
-                } ${lit ? "text-black" : "text-white"} ${
-                  isCursor ? "ring-2 ring-inset ring-main" : ""
+                  isActive ? "translate-y-0.5 text-black" : lit ? "text-black" : "text-white"
                 }`}
               >
                 {isRoot && (

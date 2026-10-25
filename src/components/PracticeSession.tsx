@@ -126,17 +126,12 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
               highlightedPitchClasses={task.guidePitchClasses ?? []}
               activeMidis={performance.activeMidis}
               soundColors={performance.soundColors}
-              cursorMidi={performance.cursorMidi}
               labelMode={labelMode}
               onLabelModeChange={setLabelMode}
               scale={scale}
               onToggleMidi={performance.toggleMidi}
               onAddMidis={performance.addMidis}
               onSelectRoot={chooseRoot}
-              onStepCursor={performance.stepCursor}
-              onMoveSelection={performance.moveSelection}
-              onAddCursor={performance.addCursor}
-              onRemoveCursor={performance.removeCursor}
               onClear={() => {
                 performance.clearChord();
                 performance.resetTaps();
@@ -158,7 +153,7 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
                   ? "Yes. The instrument and the staff agree."
                   : checked
                     ? "Not yet. Change what is sounding, then check again."
-                    : "Play the answer on the instrument or write it on the staff."}
+                    : "Play the answer. The staff follows the keys."}
               </p>
               {matched ? (
                 <Button onClick={round + 1 >= tasks!.length ? again : nextRound}>
@@ -200,7 +195,8 @@ function QuestionCard({ task }: { task: PracticeTask }) {
         <StaffNotation
           clef={task.clef ?? "treble"}
           fifths={task.fifths ?? 0}
-          notes={task.reveal === "staff" ? task.targetMidis.map((midi) => ({ midi, color: "#111" })) : []}
+          chord={task.targetMidis.length > 1}
+          notes={task.reveal === "staff" ? task.targetMidis.map((midi) => ({ midi })) : []}
         />
       )}
       {task.reveal === "bar" && task.divisions !== undefined && <DivisionBar divisions={task.divisions} />}

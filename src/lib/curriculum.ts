@@ -54,7 +54,7 @@ export const LESSONS: Lesson[] = [
     title: "Five lines, four spaces",
     teach:
       "The staff is a ladder. Lines and spaces alternate, and each rung is the next letter. The middle line of the treble staff is B4. Count letters up or down from that axis.",
-    look: "The staff and the instrument are the same notes. Arrows move the hollow note. Add writes it.",
+    look: "Play a key. The small staff writes that pitch in the same color.",
     highlight: "home",
     labelMode: "notes",
     visual: "staff",

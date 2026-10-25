@@ -301,6 +301,7 @@ export function EarGym({ onPlayNotes }: EarGymProps) {
                 </p>
                 <div className="mt-2">
                   <StaffNotation
+                    chord={category !== "modes"}
                     clef={
                       question.midis.reduce((sum, midi) => sum + midi, 0) / question.midis.length < 60
                         ? "bass"
