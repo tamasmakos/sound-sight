@@ -13,8 +13,8 @@ interface FretboardProps {
   soundColors?: Record<number, string>;
   labelMode: LabelMode;
   scale: ScaleDefinition | null;
-  onToggleMidi: (midi: number) => void;
-  onAddMidis: (midis: number[]) => void;
+  onPress: (midi: number) => void;
+  onRelease: (midi: number) => void;
 }
 
 const STRINGS: { name: string; open: number }[] = [
@@ -36,10 +36,10 @@ export function Fretboard({
   soundColors,
   labelMode,
   scale,
-  onToggleMidi,
-  onAddMidis,
+  onPress,
+  onRelease,
 }: FretboardProps) {
-  const gesture = useChordGesture(onToggleMidi, onAddMidis);
+  const gesture = useChordGesture(onPress, onRelease);
 
   return (
     <div className="w-full min-w-0 select-none overflow-x-auto overscroll-x-contain">
@@ -94,7 +94,7 @@ function StringRow({
   labelMode: LabelMode;
   scale: ScaleDefinition | null;
   onPointerDown: (id: number, midi: number) => void;
-  onPointerUp: (id: number, midi: number) => void;
+  onPointerUp: (id: number) => void;
   onPointerCancel: (id: number) => void;
 }) {
   return (
@@ -125,7 +125,7 @@ function StringRow({
               soundEngine.unlock();
               onPointerDown(event.pointerId, midi);
             }}
-            onPointerUp={(event) => onPointerUp(event.pointerId, midi)}
+            onPointerUp={(event) => onPointerUp(event.pointerId)}
             onPointerCancel={(event) => onPointerCancel(event.pointerId)}
             style={{
               backgroundColor: isActive

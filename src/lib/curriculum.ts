@@ -119,7 +119,7 @@ export const LESSONS: Lesson[] = [
     title: "A distance with a shape",
     teach:
       "Count the half steps and the interval has a name. Simple ratios draw open loops. Dense ratios knot. The staff, the ruler, and the two keys are the same distance.",
-    look: "Two notes, their waves, and a 13-cell ruler.",
+    look: "Their waves, and a 13-cell ruler.",
     highlight: "interval",
     labelMode: "steps",
     visual: "intervals",
@@ -132,7 +132,7 @@ export const LESSONS: Lesson[] = [
     title: "A walk of whole and half",
     teach:
       "Major is a path, not a list: whole, whole, half, whole, whole, whole, half. The short moves always sit between 3 and 4, and between 7 and 1.",
-    look: "The scale on the staff, then the walk.",
+    look: "The walk.",
     highlight: "scale",
     labelMode: "steps",
     visual: "major",
@@ -145,7 +145,7 @@ export const LESSONS: Lesson[] = [
     title: "Fifths add one accidental",
     teach:
       "Clockwise is up a fifth and one new sharp. Counterclockwise is down a fifth and one new flat. The signature is those accidentals, written on the letters they change.",
-    look: "The circle, and the signature on the staff.",
+    look: "The circle.",
     highlight: "scale",
     labelMode: "notes",
     visual: "keys",

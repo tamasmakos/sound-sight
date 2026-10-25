@@ -9,10 +9,6 @@ export interface VoicedNote {
   color: string;
 }
 
-function uniqueSorted(midis: number[]): number[] {
-  return [...new Set(midis)].sort((a, b) => a - b);
-}
-
 function sortVoices(notes: VoicedNote[]): VoicedNote[] {
   const seen = new Set<number>();
   return [...notes]
@@ -27,7 +23,9 @@ function sortVoices(notes: VoicedNote[]): VoicedNote[] {
 export function usePerformance() {
   const [voices, setVoices] = React.useState<VoicedNote[]>([]);
   const [taps, setTaps] = React.useState<number[]>([]);
+  const [answered, setAnswered] = React.useState<number[]>([]);
   const voicesRef = React.useRef<VoicedNote[]>([]);
+  const holdCounts = React.useRef(new Map<number, number>());
   const colorTick = React.useRef(0);
 
   const activeMidis = voices.map((note) => note.midi);
@@ -66,62 +64,58 @@ export function usePerformance() {
     else soundEngine.playChord(midis, 0.8, 0.012);
   }, []);
 
-  const replaceMidis = React.useCallback(
-    (midis: number[], arpeggiate = false) => {
-      colorTick.current = 0;
-      const used = new Set<string>();
-      const next = uniqueSorted(midis).map((midi) => ({ midi, color: takeColor(used) }));
-      commit(next);
-      play(midis, arpeggiate);
-    },
-    [commit, play, takeColor]
-  );
+  const remember = React.useCallback((notes: VoicedNote[]) => {
+    if (notes.length === 0) return;
+    setAnswered(notes.map((note) => note.midi));
+  }, []);
 
-  const toggleMidi = React.useCallback(
+  const press = React.useCallback(
     (midi: number) => {
-      const current = voicesRef.current;
-      const existing = current.find((note) => note.midi === midi);
-      const next = existing
-        ? current.filter((note) => note.midi !== midi)
-        : [...current, { midi, color: takeColor() }];
+      const count = holdCounts.current.get(midi) ?? 0;
+      holdCounts.current.set(midi, count + 1);
+      if (count > 0) return;
+      const next = [...voicesRef.current, { midi, color: takeColor() }];
       commit(next);
       setTaps((log) => [...log, midi]);
-      const sounding = next.map((note) => note.midi);
-      play(sounding.length > 0 ? sounding : [midi]);
-    },
-    [commit, play, takeColor]
-  );
-
-  const addMidis = React.useCallback(
-    (midis: number[]) => {
-      if (midis.length === 0) return;
-      const current = voicesRef.current;
-      const next = [...current];
-      for (const midi of midis) {
-        if (!next.some((note) => note.midi === midi)) {
-          next.push({ midi, color: takeColor() });
-        }
-      }
-      commit(next);
-      setTaps((log) => [...log, ...midis]);
-      play(midis);
-    },
-    [commit, play, takeColor]
-  );
-
-  const ensureMidi = React.useCallback(
-    (midi: number) => {
-      if (!voicesRef.current.some((note) => note.midi === midi)) {
-        commit([...voicesRef.current, { midi, color: takeColor() }]);
-      }
+      remember(next);
       play([midi]);
     },
-    [commit, play, takeColor]
+    [commit, play, remember, takeColor]
+  );
+
+  const release = React.useCallback(
+    (midi: number) => {
+      const count = (holdCounts.current.get(midi) ?? 0) - 1;
+      if (count > 0) {
+        holdCounts.current.set(midi, count);
+        return;
+      }
+      holdCounts.current.delete(midi);
+      if (!voicesRef.current.some((note) => note.midi === midi)) return;
+      commit(voicesRef.current.filter((note) => note.midi !== midi));
+    },
+    [commit]
+  );
+
+  const releaseAll = React.useCallback(() => {
+    holdCounts.current.clear();
+    commit([]);
+  }, [commit]);
+
+  /** Hear a figure without coloring the keys or writing it as a held chord. */
+  const playFigure = React.useCallback(
+    (midis: number[], arpeggiate = false) => {
+      play(midis, arpeggiate);
+    },
+    [play]
   );
 
   const clearChord = React.useCallback(() => {
     colorTick.current = 0;
+    holdCounts.current.clear();
     commit([]);
+    setAnswered([]);
+    setTaps([]);
   }, [commit]);
 
   const resetTaps = React.useCallback(() => {
@@ -133,10 +127,11 @@ export function usePerformance() {
     voices,
     soundColors,
     taps,
-    replaceMidis,
-    toggleMidi,
-    addMidis,
-    ensureMidi,
+    answered,
+    press,
+    release,
+    releaseAll,
+    playFigure,
     clearChord,
     resetTaps,
   };

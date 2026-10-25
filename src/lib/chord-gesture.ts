@@ -3,69 +3,56 @@
 import React from "react";
 
 /**
- * One finger toggles a note when it lifts. Two or more fingers add every
- * held note and leave them sounding, so a chord can be played at once.
+ * A note sounds and is drawn only while its pointer or key is down.
+ * Two pointers on one key share a hold; the note lifts when the last one lifts.
  */
 export function useChordGesture(
-  onToggle: (midi: number) => void,
-  onAdd: (midis: number[]) => void
+  onPress: (midi: number) => void,
+  onRelease: (midi: number) => void
 ) {
   const pointers = React.useRef(new Map<number, number>());
   const keys = React.useRef(new Map<string, number>());
-  const pointerChord = React.useRef(false);
-  const keyChord = React.useRef(false);
 
   const pointerDown = React.useCallback(
     (id: number, midi: number) => {
+      if (pointers.current.has(id)) return;
       pointers.current.set(id, midi);
-      if (pointers.current.size > 1) {
-        pointerChord.current = true;
-        onAdd([...new Set(pointers.current.values())]);
-      }
+      onPress(midi);
     },
-    [onAdd]
+    [onPress]
   );
 
   const pointerUp = React.useCallback(
-    (id: number, midi: number) => {
+    (id: number) => {
+      const midi = pointers.current.get(id);
+      if (midi === undefined) return;
       pointers.current.delete(id);
-      if (pointers.current.size > 0) return;
-      if (!pointerChord.current) onToggle(midi);
-      pointerChord.current = false;
+      onRelease(midi);
     },
-    [onToggle]
+    [onRelease]
   );
-
-  const pointerCancel = React.useCallback((id: number) => {
-    pointers.current.delete(id);
-    if (pointers.current.size === 0) pointerChord.current = false;
-  }, []);
 
   const keyDown = React.useCallback(
     (code: string, midi: number) => {
       if (keys.current.has(code)) return;
       keys.current.set(code, midi);
-      if (keys.current.size > 1) {
-        keyChord.current = true;
-        onAdd([...new Set(keys.current.values())]);
-      }
+      onPress(midi);
     },
-    [onAdd]
+    [onPress]
   );
 
   const keyUp = React.useCallback(
-    (code: string, midi: number) => {
-      if (!keys.current.has(code)) return;
+    (code: string) => {
+      const midi = keys.current.get(code);
+      if (midi === undefined) return;
       keys.current.delete(code);
-      if (keys.current.size > 0) return;
-      if (!keyChord.current) onToggle(midi);
-      keyChord.current = false;
+      onRelease(midi);
     },
-    [onToggle]
+    [onRelease]
   );
 
   return React.useMemo(
-    () => ({ pointerDown, pointerUp, pointerCancel, keyDown, keyUp }),
-    [pointerDown, pointerUp, pointerCancel, keyDown, keyUp]
+    () => ({ pointerDown, pointerUp, pointerCancel: pointerUp, keyDown, keyUp }),
+    [pointerDown, pointerUp, keyDown, keyUp]
   );
 }
