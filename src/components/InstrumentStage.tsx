@@ -73,7 +73,7 @@ export function InstrumentStage({
   const wide = !chord && midis.length > 4;
   const clef = staffClef(midis);
   const fifths = written?.fifths ?? fifthsForTonic(rootPc);
-  const showNotation = showStaff && midis.length > 0;
+  const showNotation = showStaff;
 
   const switchInstrument = (next: InstrumentId) => {
     if (next === instrument) return;
