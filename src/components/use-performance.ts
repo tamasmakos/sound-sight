@@ -3,7 +3,6 @@
 import React from "react";
 import { soundEngine } from "@/lib/audio-engine";
 import { noteColor } from "@/lib/note-colors";
-import { shiftDiatonic } from "@/lib/notation";
 
 export interface VoicedNote {
   midi: number;
@@ -27,10 +26,8 @@ function sortVoices(notes: VoicedNote[]): VoicedNote[] {
 
 export function usePerformance() {
   const [voices, setVoices] = React.useState<VoicedNote[]>([]);
-  const [cursorMidi, setCursorMidiState] = React.useState(60);
   const [taps, setTaps] = React.useState<number[]>([]);
   const voicesRef = React.useRef<VoicedNote[]>([]);
-  const cursorRef = React.useRef(60);
   const colorTick = React.useRef(0);
 
   const activeMidis = voices.map((note) => note.midi);
@@ -40,12 +37,16 @@ export function usePerformance() {
     return colors;
   }, [voices]);
 
-  const setCursorMidi = React.useCallback((midi: number) => {
-    cursorRef.current = midi;
-    setCursorMidiState(midi);
-  }, []);
-
-  const takeColor = React.useCallback(() => {
+  const takeColor = React.useCallback((used?: Set<string>) => {
+    const taken = used ?? new Set(voicesRef.current.map((note) => note.color));
+    for (let attempt = 0; attempt < 36; attempt += 1) {
+      const color = noteColor(colorTick.current);
+      colorTick.current += 1;
+      if (!taken.has(color)) {
+        taken.add(color);
+        return color;
+      }
+    }
     const color = noteColor(colorTick.current);
     colorTick.current += 1;
     return color;
@@ -68,12 +69,12 @@ export function usePerformance() {
   const replaceMidis = React.useCallback(
     (midis: number[], arpeggiate = false) => {
       colorTick.current = 0;
-      const next = uniqueSorted(midis).map((midi) => ({ midi, color: takeColor() }));
+      const used = new Set<string>();
+      const next = uniqueSorted(midis).map((midi) => ({ midi, color: takeColor(used) }));
       commit(next);
-      if (next.length > 0) setCursorMidi(next[next.length - 1].midi);
       play(midis, arpeggiate);
     },
-    [commit, play, setCursorMidi, takeColor]
+    [commit, play, takeColor]
   );
 
   const toggleMidi = React.useCallback(
@@ -84,12 +85,11 @@ export function usePerformance() {
         ? current.filter((note) => note.midi !== midi)
         : [...current, { midi, color: takeColor() }];
       commit(next);
-      setCursorMidi(midi);
       setTaps((log) => [...log, midi]);
       const sounding = next.map((note) => note.midi);
       play(sounding.length > 0 ? sounding : [midi]);
     },
-    [commit, play, setCursorMidi, takeColor]
+    [commit, play, takeColor]
   );
 
   const addMidis = React.useCallback(
@@ -103,11 +103,10 @@ export function usePerformance() {
         }
       }
       commit(next);
-      setCursorMidi(midis[midis.length - 1]);
       setTaps((log) => [...log, ...midis]);
       play(midis);
     },
-    [commit, play, setCursorMidi, takeColor]
+    [commit, play, takeColor]
   );
 
   const ensureMidi = React.useCallback(
@@ -115,10 +114,9 @@ export function usePerformance() {
       if (!voicesRef.current.some((note) => note.midi === midi)) {
         commit([...voicesRef.current, { midi, color: takeColor() }]);
       }
-      setCursorMidi(midi);
       play([midi]);
     },
-    [commit, play, setCursorMidi, takeColor]
+    [commit, play, takeColor]
   );
 
   const clearChord = React.useCallback(() => {
@@ -130,79 +128,10 @@ export function usePerformance() {
     setTaps([]);
   }, []);
 
-  const stepCursor = React.useCallback(
-    (delta: number, fifths = 0) => {
-      const from = cursorRef.current;
-      const to = shiftDiatonic(from, delta, fifths);
-      const current = voicesRef.current;
-      const index = current.findIndex((note) => note.midi === from);
-      const blocked = current.some((note) => note.midi === to);
-      if (index >= 0 && !blocked) {
-        commit(current.map((note, noteIndex) => (noteIndex === index ? { ...note, midi: to } : note)));
-      }
-      setCursorMidi(to);
-      soundEngine.unlock();
-      soundEngine.playMidi(to, 0.28);
-    },
-    [commit, setCursorMidi]
-  );
-
-  const moveSelection = React.useCallback(
-    (direction: number) => {
-      const sorted = sortVoices(voicesRef.current);
-      if (sorted.length === 0) return;
-      const index = sorted.findIndex((note) => note.midi === cursorRef.current);
-      const nextIndex =
-        index < 0
-          ? direction > 0
-            ? 0
-            : sorted.length - 1
-          : (index + direction + sorted.length) % sorted.length;
-      const midi = sorted[nextIndex].midi;
-      setCursorMidi(midi);
-      soundEngine.unlock();
-      soundEngine.playMidi(midi, 0.28);
-    },
-    [setCursorMidi]
-  );
-
-  const addCursor = React.useCallback((fifths = 0) => {
-    const midi = cursorRef.current;
-    const current = voicesRef.current;
-    if (!current.some((note) => note.midi === midi)) {
-      commit([...current, { midi, color: takeColor() }]);
-      setTaps((log) => [...log, midi]);
-      play([midi]);
-      return;
-    }
-    let next = shiftDiatonic(midi, 1, fifths);
-    for (let step = 0; step < 14 && current.some((note) => note.midi === next); step += 1) {
-      next = shiftDiatonic(next, 1, fifths);
-    }
-    if (current.some((note) => note.midi === next)) return;
-    commit([...current, { midi: next, color: takeColor() }]);
-    setCursorMidi(next);
-    setTaps((log) => [...log, next]);
-    play([next]);
-  }, [commit, play, setCursorMidi, takeColor]);
-
-  const removeCursor = React.useCallback(() => {
-    const midi = cursorRef.current;
-    const current = voicesRef.current;
-    if (!current.some((note) => note.midi === midi)) return;
-    const next = current.filter((note) => note.midi !== midi);
-    commit(next);
-    if (next.length === 0) return;
-    const sorted = sortVoices(next);
-    const neighbor = sorted.find((note) => note.midi > midi) ?? sorted[sorted.length - 1];
-    setCursorMidi(neighbor.midi);
-  }, [commit, setCursorMidi]);
-
   return {
     activeMidis,
     voices,
     soundColors,
-    cursorMidi,
     taps,
     replaceMidis,
     toggleMidi,
@@ -210,10 +139,5 @@ export function usePerformance() {
     ensureMidi,
     clearChord,
     resetTaps,
-    stepCursor,
-    moveSelection,
-    addCursor,
-    removeCursor,
-    setCursorMidi,
   };
 }

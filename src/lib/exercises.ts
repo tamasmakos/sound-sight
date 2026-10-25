@@ -91,8 +91,8 @@ function placeNote(midi: number): PracticeTask {
   const name = spellMidi(midi).name;
   return {
     key: id(),
-    prompt: `Place ${name} on the staff.`,
-    detail: "Move the hollow note with the arrows, then press Add. The same pitch lights on the instrument.",
+    prompt: `Play ${name}.`,
+    detail: "Find that pitch on the piano or the guitar. The staff writes it in the same color.",
     targetMidis: [midi],
     match: "exact",
     reveal: "name",
@@ -221,7 +221,7 @@ export function makePracticeTasks(
       return {
         key: id(),
         prompt: place
-          ? `Place the home of ${key.major} major on the staff.`
+          ? `Play the home of ${key.major} major.`
           : "Play the major home of this signature.",
         detail: "The last sharp sits a half step under home. The last flat is home, four flats and beyond.",
         targetMidis: [60 + key.tonicPc],
