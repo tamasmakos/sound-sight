@@ -28,8 +28,7 @@ import { ScaleModeLab } from "@/components/ScaleModeLab";
 import { ChordFlowLab } from "@/components/ChordFlowLab";
 import { PolyrhythmOrbitLab } from "@/components/PolyrhythmOrbitLab";
 import { EarGym } from "@/components/EarGym";
-import { StaffNotation } from "@/components/StaffNotation";
-import { fifthsForTonic } from "@/lib/notation";
+import { keyByFifths } from "@/lib/notation";
 import {
   GrandStaffLesson,
   InversionLesson,
@@ -47,6 +46,11 @@ const IONIAN = SCALES.find((scale) => scale.id === "ionian")!;
 const CHAPTERS = lessonsByChapter();
 const INITIAL_SHAPE_STEPS = [2, 5, 9];
 const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11, 12];
+const INVERSIONS = [
+  [0, 4, 7],
+  [4, 7, 12],
+  [7, 12, 16],
+];
 
 export function CourseApp() {
   const router = useRouter();
@@ -65,14 +69,16 @@ export function CourseApp() {
   const [intervalSemitones, setIntervalSemitones] = React.useState(7);
   const [labelMode, setLabelMode] = React.useState<LabelMode>(requestedLesson.labelMode);
   const [instrument, setInstrument] = React.useState<InstrumentId>("piano");
+  const [circleFifths, setCircleFifths] = React.useState(0);
+  const [inversionIndex, setInversionIndex] = React.useState(0);
   const [audioPhase, setAudioPhase] = React.useState<AudioPhase>("unready");
   const {
     activeMidis,
     soundColors,
-    replaceMidis,
-    toggleMidi,
-    addMidis,
-    ensureMidi,
+    press,
+    release,
+    releaseAll,
+    playFigure,
     clearChord,
   } = usePerformance();
 
@@ -91,9 +97,9 @@ export function CourseApp() {
           Array.from(new Set(midis.map((midi) => semitoneFromRoot(midi, rootPc))))
         );
       }
-      replaceMidis(midis, arpeggiate);
+      playFigure(midis, arpeggiate);
     },
-    [lesson.highlight, replaceMidis, rootPc]
+    [lesson.highlight, playFigure, rootPc]
   );
 
   const chooseRoot = React.useCallback((pc: number) => {
@@ -103,9 +109,9 @@ export function CourseApp() {
   const playRoot = React.useCallback(
     (pc: number) => {
       setRootPc(pc);
-      ensureMidi(60 + pc);
+      playFigure([60 + pc]);
     },
-    [ensureMidi]
+    [playFigure]
   );
 
   const handleIntervalChange = React.useCallback((interval: IntervalInfo) => {
@@ -168,6 +174,8 @@ export function CourseApp() {
     }
     if (next.visual === "intervals") setIntervalSemitones(7);
     if (next.visual === "minor") setIntervalSemitones(9);
+    setCircleFifths(0);
+    setInversionIndex(0);
     window.requestAnimationFrame(() => {
       document
         .getElementById("lesson-top")
@@ -212,6 +220,51 @@ export function CourseApp() {
     }
   };
 
+  const written = React.useMemo(() => {
+    const base = 60 + rootPc;
+    const line = (steps: number[]) => steps.map((semi) => base + semi);
+    const signature =
+      (lesson.visual === "keys" || lesson.visual === "minor") &&
+      keyByFifths(circleFifths).tonicPc === rootPc
+        ? circleFifths
+        : undefined;
+    switch (lesson.visual) {
+      case "steps":
+        return { midis: [base, base + 1, base + 2], chord: false };
+      case "intervals":
+        return { midis: [base, base + intervalSemitones], chord: true };
+      case "major":
+        return { midis: line(MAJOR_STEPS), chord: false };
+      case "keys":
+        return { midis: line(MAJOR_STEPS), chord: false, fifths: signature };
+      case "minor":
+        return {
+          midis: [base, 60 + ((rootPc + 9) % 12)],
+          chord: true,
+          fifths: signature,
+        };
+      case "modes":
+        return {
+          midis: [...selectedScale.intervals.map((semi) => base + semi), base + 12],
+          chord: false,
+        };
+      case "triads":
+        return { midis: selectedChord.intervals.map((semi) => base + semi), chord: true };
+      case "inversions":
+        return { midis: INVERSIONS[inversionIndex].map((semi) => base + semi), chord: true };
+      default:
+        return null;
+    }
+  }, [
+    lesson.visual,
+    rootPc,
+    intervalSemitones,
+    circleFifths,
+    selectedScale,
+    selectedChord,
+    inversionIndex,
+  ]);
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b-2 border-border bg-white">
@@ -231,7 +284,7 @@ export function CourseApp() {
             size="sm"
             onClick={() => {
               soundEngine.setMuted(false);
-              replaceMidis([60]);
+              playFigure([60]);
             }}
           >
             <Volume2 className="size-4" /> Hear a C
@@ -285,10 +338,11 @@ export function CourseApp() {
                 labelMode={labelMode}
                 onLabelModeChange={setLabelMode}
                 scale={selectedScale}
-                onToggleMidi={toggleMidi}
-                onAddMidis={addMidis}
+                onPress={press}
+                onRelease={release}
+                onReleaseAll={releaseAll}
                 onSelectRoot={playRoot}
-                onClear={clearChord}
+                written={written}
                 onHearShape={lesson.highlight === "none" ? undefined : hearShape}
               />
             </div>
@@ -300,7 +354,6 @@ export function CourseApp() {
               <LessonVisual
                 lesson={lesson}
                 rootPc={rootPc}
-                intervalSemitones={intervalSemitones}
                 selectedChord={selectedChord}
                 selectedScale={selectedScale}
                 onSelectRoot={chooseRoot}
@@ -308,7 +361,11 @@ export function CourseApp() {
                 onSelectScale={setSelectedScale}
                 activeMidis={activeMidis}
                 onPlayNotes={handlePlayNotes}
-                onPlayMidi={toggleMidi}
+                onPlayMidi={(midi) => playFigure([midi])}
+                circleFifths={circleFifths}
+                onCircleFifths={setCircleFifths}
+                inversionIndex={inversionIndex}
+                onInversionIndex={setInversionIndex}
                 onIntervalChange={handleIntervalChange}
               />
             </section>
@@ -411,7 +468,6 @@ function PathNav({
 function LessonVisual({
   lesson,
   rootPc,
-  intervalSemitones,
   selectedChord,
   selectedScale,
   onSelectRoot,
@@ -421,10 +477,13 @@ function LessonVisual({
   onPlayNotes,
   onPlayMidi,
   onIntervalChange,
+  circleFifths,
+  onCircleFifths,
+  inversionIndex,
+  onInversionIndex,
 }: {
   lesson: Lesson;
   rootPc: number;
-  intervalSemitones: number;
   selectedChord: ChordQuality;
   selectedScale: ScaleDefinition;
   activeMidis: number[];
@@ -434,6 +493,10 @@ function LessonVisual({
   onPlayNotes: (midis: number[], arpeggiate?: boolean) => void;
   onPlayMidi: (midi: number) => void;
   onIntervalChange: (interval: IntervalInfo) => void;
+  circleFifths: number;
+  onCircleFifths: (fifths: number) => void;
+  inversionIndex: number;
+  onInversionIndex: (index: number) => void;
 }) {
   switch (lesson.visual) {
     case "staff":
@@ -445,55 +508,36 @@ function LessonVisual({
     case "meter":
       return <MeterLesson onPlay={onPlayNotes} />;
     case "steps":
-      return (
-        <div className="space-y-3">
-          <StaffNotation
-            fifths={fifthsForTonic(rootPc)}
-            litMidis={activeMidis}
-            notes={[0, 1, 2].map((semi) => ({
-              midi: 60 + rootPc + semi,
-            }))}
-          />
-          <PitchWalk kind="steps" rootPc={rootPc} onPlayMidi={onPlayMidi} />
-        </div>
-      );
+      return <PitchWalk kind="steps" rootPc={rootPc} onPlayMidi={onPlayMidi} />;
     case "intervals":
       return (
-        <div className="space-y-3">
-          <StaffNotation
-            chord
-            fifths={fifthsForTonic(rootPc)}
-            litMidis={activeMidis}
-            notes={[
-              { midi: 60 + rootPc },
-              { midi: 60 + rootPc + intervalSemitones },
-            ]}
-          />
-          <IntervalWaveLab
-            embedded
-            rootPc={rootPc}
-            onPlayNotes={onPlayNotes}
-            onIntervalChange={onIntervalChange}
-          />
-        </div>
+        <IntervalWaveLab
+          embedded
+          rootPc={rootPc}
+          onPlayNotes={onPlayNotes}
+          onIntervalChange={onIntervalChange}
+        />
       );
     case "major":
-      return (
-        <div className="space-y-3">
-          <StaffNotation
-            fifths={fifthsForTonic(rootPc)}
-            litMidis={activeMidis}
-            notes={MAJOR_STEPS.map((semi) => ({
-              midi: 60 + rootPc + semi,
-            }))}
-          />
-          <PitchWalk kind="major" rootPc={rootPc} onPlayMidi={onPlayMidi} />
-        </div>
-      );
+      return <PitchWalk kind="major" rootPc={rootPc} onPlayMidi={onPlayMidi} />;
     case "keys":
-      return <KeySignatureLesson onPlayNotes={onPlayNotes} onSelectRoot={onSelectRoot} />;
+      return (
+        <KeySignatureLesson
+          fifths={circleFifths}
+          onFifths={onCircleFifths}
+          onPlayNotes={onPlayNotes}
+          onSelectRoot={onSelectRoot}
+        />
+      );
     case "minor":
-      return <MinorLesson onPlayNotes={onPlayNotes} onSelectRoot={onSelectRoot} />;
+      return (
+        <MinorLesson
+          fifths={circleFifths}
+          onFifths={onCircleFifths}
+          onPlayNotes={onPlayNotes}
+          onSelectRoot={onSelectRoot}
+        />
+      );
     case "modes":
       return (
         <ScaleModeLab
@@ -520,7 +564,14 @@ function LessonVisual({
         />
       );
     case "inversions":
-      return <InversionLesson rootPc={rootPc} onPlay={onPlayNotes} />;
+      return (
+        <InversionLesson
+          rootPc={rootPc}
+          index={inversionIndex}
+          onIndex={onInversionIndex}
+          onPlay={onPlayNotes}
+        />
+      );
     case "motion":
       return <ChordFlowLab embedded rootPc={rootPc} onPlayNotes={onPlayNotes} />;
     case "time":

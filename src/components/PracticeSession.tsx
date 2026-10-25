@@ -50,11 +50,10 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
   }, []);
 
   const task = tasks?.[round] ?? null;
-  const matched = task ? answerMatches(task, performance.activeMidis, performance.taps) : false;
+  const matched = task ? answerMatches(task, performance.answered, performance.taps) : false;
 
   const chooseRoot = (pc: number) => {
     setRootPc(pc);
-    performance.ensureMidi(60 + pc);
   };
 
   const nextRound = () => {
@@ -129,13 +128,10 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
               labelMode={labelMode}
               onLabelModeChange={setLabelMode}
               scale={scale}
-              onToggleMidi={performance.toggleMidi}
-              onAddMidis={performance.addMidis}
+              onPress={performance.press}
+              onRelease={performance.release}
+              onReleaseAll={performance.releaseAll}
               onSelectRoot={chooseRoot}
-              onClear={() => {
-                performance.clearChord();
-                performance.resetTaps();
-              }}
             />
 
             <div className="flex items-center justify-between gap-3 pb-6">
@@ -152,8 +148,8 @@ function PracticeRound({ lesson }: { lesson: (typeof LESSONS)[number] }) {
                 {matched
                   ? "Yes. The instrument and the staff agree."
                   : checked
-                    ? "Not yet. Change what is sounding, then check again."
-                    : "Play the answer. The staff follows the keys."}
+                    ? "Not yet. Play the answer again, then check."
+                    : "Hold the answer. The staff follows the keys."}
               </p>
               {matched ? (
                 <Button onClick={round + 1 >= tasks!.length ? again : nextRound}>

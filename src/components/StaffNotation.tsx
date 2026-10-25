@@ -67,18 +67,23 @@ function vexPitch(midi: number, fifths: number): string {
   return `${letter}${accidental}/${spelled.octave}`;
 }
 
-function staffPadding(clef: "treble" | "bass", notes: DrawnNote[], fifths: number, compact: boolean) {
+/**
+ * Line-spaces of padding. The clef stays put: headroom only grows when a
+ * ledger would otherwise leave the fixed margin, and low notes grow the
+ * bottom rather than shifting the view.
+ */
+function staveSpace(clef: "treble" | "bass", notes: DrawnNote[], fifths: number) {
   const positions = notes.map((note) => staffPosition(note.midi, clef, fifths));
-  const highest = Math.max(8, ...positions);
-  const lowest = Math.min(0, ...positions);
+  const highest = positions.length > 0 ? Math.max(...positions) : 8;
+  const lowest = positions.length > 0 ? Math.min(...positions) : 0;
   return {
-    above: Math.max(compact ? 10 : 18, (highest - 8) * 5 + (compact ? 8 : 16)),
-    below: Math.max(compact ? 14 : 28, -lowest * 5 + (compact ? 12 : 22)),
+    above: Math.max(4, 1 + Math.ceil((highest - 8) / 2)),
+    below: Math.max(2.5, 1.5 + Math.ceil(Math.max(0, -lowest) / 2)),
   };
 }
 
 function scoreWidth(available: number, fifths: number, slots: number, compact: boolean) {
-  const needed = 118 + Math.abs(fifths) * 16 + Math.max(slots, 1) * (compact ? 28 : 46);
+  const needed = 118 + Math.abs(fifths) * 16 + Math.max(slots, 1) * (compact ? 28 : 36);
   if (compact) return needed;
   return Math.max(available, needed);
 }
@@ -160,9 +165,9 @@ export function StaffNotation({
     <div
       ref={hostRef}
       onClick={pick}
-      className={`flex w-full justify-center bg-white ${
-        compact ? "overflow-x-auto" : "min-h-24 overflow-x-auto"
-      } ${interactive ? "cursor-pointer" : ""}`}
+      className={`flex w-full justify-center overflow-x-auto bg-white ${
+        interactive ? "cursor-pointer" : ""
+      }`}
       role="img"
       aria-label={
         chord
@@ -209,52 +214,51 @@ function drawScore(
     const bassNotes = score.notes.filter((note) => note.midi < 60);
     const slots = score.chord ? 1 : Math.max(trebleNotes.length, bassNotes.length, 1);
     const width = scoreWidth(available, score.fifths, slots, score.compact);
-    const treblePad = staffPadding("treble", trebleNotes, score.fifths, score.compact);
-    const bassPad = staffPadding("bass", bassNotes, score.fifths, score.compact);
-    const gap = score.compact ? 58 : 90;
-    const trebleY = treblePad.above;
-    const bassY = trebleY + gap + bassPad.above;
-    const height = bassY + (score.compact ? 58 : 70) + bassPad.below;
+    const trebleSpace = staveSpace("treble", trebleNotes, score.fifths);
+    const bassSpace = staveSpace("bass", bassNotes, score.fifths);
     const renderer = new Renderer(host, Renderer.Backends.SVG);
-    renderer.resize(width, height);
+    renderer.resize(width, 420);
     const context = renderer.getContext();
     const treble = drawStave(vf, context, {
-      x: 8,
-      y: trebleY,
-      width: width - 16,
+      x: 18,
+      y: 0,
+      width: width - 26,
       clef: "treble",
       fifths: score.fifths,
       key,
       notes: trebleNotes,
       chord: score.chord,
       compact: score.compact,
+      spaceAbove: trebleSpace.above,
+      spaceBelow: trebleSpace.below,
     });
     const bass = drawStave(vf, context, {
-      x: 8,
-      y: bassY,
-      width: width - 16,
+      x: 18,
+      y: treble.stave.getBottomY() + 8,
+      width: width - 26,
       clef: "bass",
       fifths: score.fifths,
       key,
       notes: bassNotes,
       chord: score.chord,
       compact: score.compact,
+      spaceAbove: bassSpace.above,
+      spaceBelow: bassSpace.below,
     });
     new StaveConnector(treble.stave, bass.stave).setType("brace").setContext(context).draw();
-    fitSvg(host);
+    sizeSvg(host, width, bass.stave.getBottomY() + 6);
     return [treble.metric, bass.metric];
   }
 
   const slots = score.chord ? 1 : Math.max(score.notes.length, 1);
   const width = scoreWidth(available, score.fifths, slots, score.compact);
-  const pad = staffPadding(score.clef, score.notes, score.fifths, score.compact);
-  const height = pad.above + (score.compact ? 58 : 72) + pad.below;
+  const space = staveSpace(score.clef, score.notes, score.fifths);
   const renderer = new Renderer(host, Renderer.Backends.SVG);
-  renderer.resize(width, height);
+  renderer.resize(width, 280);
   const context = renderer.getContext();
   const drawn = drawStave(vf, context, {
     x: 8,
-    y: pad.above,
+    y: 0,
     width: width - 16,
     clef: score.clef,
     fifths: score.fifths,
@@ -262,42 +266,23 @@ function drawScore(
     notes: score.notes,
     chord: score.chord,
     compact: score.compact,
+    spaceAbove: space.above,
+    spaceBelow: space.below,
   });
-  fitSvg(host);
+  sizeSvg(host, width, drawn.stave.getBottomY() + 6);
   return [drawn.metric];
 }
 
-/**
- * Music-font glyphs report a huge em box. Measure the staff lines, stems, and
- * the baselines of the glyphs so the canvas hugs the music.
- */
-function fitSvg(host: HTMLDivElement) {
+/** Keep the origin at y = 0 so the clef does not jump or get cropped. */
+function sizeSvg(host: HTMLDivElement, width: number, bottom: number) {
   const svg = host.querySelector("svg");
   if (!svg) return;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  svg.querySelectorAll("path, rect, text").forEach((node) => {
-    if (node.getAttribute("opacity") === "0") return;
-    if (node instanceof SVGTextElement) {
-      const y = Number(node.getAttribute("y") ?? 0);
-      const above = node.closest(".vf-clef") ? 40 : 9;
-      const below = node.closest(".vf-clef") ? 16 : 9;
-      minY = Math.min(minY, y - above);
-      maxY = Math.max(maxY, y + below);
-      return;
-    }
-    const box = (node as SVGGraphicsElement).getBBox();
-    minY = Math.min(minY, box.y);
-    maxY = Math.max(maxY, box.y + box.height);
-  });
-  if (!Number.isFinite(minY) || !Number.isFinite(maxY)) return;
-  const pad = 6;
-  const width = Number(svg.getAttribute("width"));
-  const top = minY - pad;
-  const height = Math.ceil(maxY - minY + pad * 2);
-  svg.setAttribute("viewBox", `0 ${top} ${width} ${maxY - minY + pad * 2}`);
+  const height = Math.ceil(bottom);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("height", String(height));
-  svg.style.height = `${height}px`;
+  svg.style.width = "100%";
+  svg.style.height = "auto";
+  svg.style.overflow = "visible";
 }
 
 function drawStave(
@@ -313,10 +298,15 @@ function drawStave(
     notes: DrawnNote[];
     chord: boolean;
     compact: boolean;
+    spaceAbove: number;
+    spaceBelow: number;
   }
 ) {
   const { Stave, StaveNote, Voice, VoiceMode, Formatter, Accidental } = vf;
-  const stave = new Stave(options.x, options.y, options.width);
+  const stave = new Stave(options.x, options.y, options.width, {
+    spaceAboveStaffLn: options.spaceAbove,
+    spaceBelowStaffLn: options.spaceBelow,
+  });
   stave.addClef(options.clef).addKeySignature(options.key);
   stave.setContext(context).draw();
 
@@ -328,7 +318,7 @@ function drawStave(
     const room = Math.max(40, stave.getNoteEndX() - stave.getNoteStartX() - 12);
     const justify = options.chord
       ? Math.min(room, options.compact ? 52 : 72)
-      : Math.min(room, Math.max(72, options.notes.length * (options.compact ? 36 : 54)));
+      : Math.min(room, Math.max(72, options.notes.length * (options.compact ? 36 : 42)));
     new Formatter().joinVoices([voice]).format([voice], justify);
     voice.draw(context, stave);
   }

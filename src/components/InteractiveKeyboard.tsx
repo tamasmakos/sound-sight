@@ -22,8 +22,9 @@ interface InteractiveKeyboardProps {
   labelMode: LabelMode;
   onLabelModeChange: (mode: LabelMode) => void;
   scale: ScaleDefinition | null;
-  onToggleMidi: (midi: number) => void;
-  onAddMidis: (midis: number[]) => void;
+  onPress: (midi: number) => void;
+  onRelease: (midi: number) => void;
+  onReleaseAll: () => void;
   onSelectRoot: (pc: number) => void;
   onHearShape?: () => void;
   bare?: boolean;
@@ -66,13 +67,23 @@ export function InteractiveKeyboard({
   labelMode,
   onLabelModeChange,
   scale,
-  onToggleMidi,
-  onAddMidis,
+  onPress,
+  onRelease,
+  onReleaseAll,
   onSelectRoot,
   onHearShape,
   bare = false,
 }: InteractiveKeyboardProps) {
-  const gesture = useChordGesture(onToggleMidi, onAddMidis);
+  const [startOctave, setStartOctave] = React.useState(4);
+  const gesture = useChordGesture(onPress, onRelease);
+  const shift = (startOctave - 4) * 12;
+
+  const changeOctave = (next: number) => {
+    const clamped = Math.max(1, Math.min(6, next));
+    if (clamped === startOctave) return;
+    onReleaseAll();
+    setStartOctave(clamped);
+  };
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -86,15 +97,15 @@ export function InteractiveKeyboard({
       ) {
         return;
       }
-      const midi = KEY_BINDINGS[event.key.toLowerCase()];
-      if (midi === undefined) return;
+      const home = KEY_BINDINGS[event.key.toLowerCase()];
+      if (home === undefined) return;
+      const midi = Math.max(0, Math.min(127, home + shift));
       soundEngine.unlock();
       gesture.keyDown(event.key.toLowerCase(), midi);
     };
     const handleKeyUp = (event: KeyboardEvent) => {
-      const midi = KEY_BINDINGS[event.key.toLowerCase()];
-      if (midi === undefined) return;
-      gesture.keyUp(event.key.toLowerCase(), midi);
+      if (KEY_BINDINGS[event.key.toLowerCase()] === undefined) return;
+      gesture.keyUp(event.key.toLowerCase());
     };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -102,9 +113,9 @@ export function InteractiveKeyboard({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [gesture]);
+  }, [gesture, shift]);
 
-  const octaves = [4, 5];
+  const octaves = [startOctave, startOctave + 1];
   const whiteKeys: { midi: number; pc: number }[] = [];
   const blackKeys: { midi: number; pc: number; leftPercent: number }[] = [];
   const totalWhiteCount = 15;
@@ -125,7 +136,7 @@ export function InteractiveKeyboard({
     });
   });
 
-  whiteKeys.push({ midi: 84, pc: 0 });
+  whiteKeys.push({ midi: (startOctave + 3) * 12, pc: 0 });
 
   const labelFor = (pc: number) =>
     labelMode === "notes"
@@ -157,10 +168,7 @@ export function InteractiveKeyboard({
               return (
                 <button
                   key={note}
-                  onClick={() => {
-                    onSelectRoot(pc);
-                    onAddMidis([60 + pc]);
-                  }}
+                  onClick={() => onSelectRoot(pc)}
                   className={`h-8 min-w-8 rounded-base border-2 border-border px-1.5 text-xs font-heading cursor-pointer shrink-0 ${
                     isRoot ? "bg-main" : "bg-white hover:bg-background"
                   }`}
@@ -201,6 +209,28 @@ export function InteractiveKeyboard({
       </div>
       )}
 
+      <div className="mb-1 flex items-center justify-end gap-1">
+        <button
+          type="button"
+          aria-label="Lower octave"
+          disabled={startOctave <= 1}
+          onClick={() => changeOctave(startOctave - 1)}
+          className="flex size-7 cursor-pointer items-center justify-center rounded-base border-2 border-border bg-white font-heading leading-none disabled:cursor-default disabled:opacity-40"
+        >
+          −
+        </button>
+        <span className="min-w-8 text-center font-heading text-xs">C{startOctave}</span>
+        <button
+          type="button"
+          aria-label="Raise octave"
+          disabled={startOctave >= 6}
+          onClick={() => changeOctave(startOctave + 1)}
+          className="flex size-7 cursor-pointer items-center justify-center rounded-base border-2 border-border bg-white font-heading leading-none disabled:cursor-default disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+
       <div className="relative h-44 w-full select-none overflow-hidden rounded-base border-2 border-border bg-neutral-950 p-1 sm:h-52">
         <div className="relative flex h-full w-full">
           {whiteKeys.map((key) => {
@@ -214,7 +244,7 @@ export function InteractiveKeyboard({
                 aria-pressed={isActive}
                 aria-label={`${spellMidi(key.midi).name}, step ${stepLabel(key.pc, rootPc, scale)}`}
                 onPointerDown={(event) => pressKey(event, key.midi)}
-                onPointerUp={(event) => gesture.pointerUp(event.pointerId, key.midi)}
+                onPointerUp={(event) => gesture.pointerUp(event.pointerId)}
                 onPointerCancel={(event) => gesture.pointerCancel(event.pointerId)}
                 className={`relative flex h-full flex-1 touch-manipulation flex-col items-center justify-end border-r border-black/80 pb-2 last:border-r-0 cursor-pointer ${
                   isActive ? "translate-y-0.5" : ""
@@ -249,7 +279,7 @@ export function InteractiveKeyboard({
                 aria-pressed={isActive}
                 aria-label={`${spellMidi(key.midi).name}, step ${stepLabel(key.pc, rootPc, scale)}`}
                 onPointerDown={(event) => pressKey(event, key.midi)}
-                onPointerUp={(event) => gesture.pointerUp(event.pointerId, key.midi)}
+                onPointerUp={(event) => gesture.pointerUp(event.pointerId)}
                 onPointerCancel={(event) => gesture.pointerCancel(event.pointerId)}
                 style={{
                   left: `${key.leftPercent}%`,
